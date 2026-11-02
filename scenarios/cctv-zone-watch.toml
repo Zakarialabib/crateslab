@@ -1,0 +1,41 @@
+# Zone watch for the cctv-rs fleet. on_fail = "continue": a camera that
+# refuses PTZ (fixed dome) must not hide the detection results.
+
+[scenario]
+name = "cctv-zone-watch"
+target = "mock"
+on_fail = "continue"
+vars = { cam = "192.168.2.10" }
+
+[[steps]]
+run = "cctv.discovery.sweep"
+args = { timeout_ms = 1500 }
+expect = "ok"
+
+[[steps]]
+run = "cctv.stream.snapshot"
+args = { ip = "$vars.cam" }
+expect = "ok"
+
+[[steps]]
+run = "cctv.detect.zones"
+args = { ip = "$vars.cam" }
+expect = "ok"
+
+[[steps]]
+run = "cctv.ptz.move"
+args = { ip = "$vars.cam", pan = 0.5, tilt = 0.0, zoom = 1.0 }
+expect = "ok"
+
+[[steps]]
+run = "cctv.ptz.stop"
+args = { ip = "$vars.cam" }
+expect = "ok"
+
+[[steps]]
+# Expect the refusal vocabulary to work here too: a stream-only UVC
+# adapter must refuse PTZ with a Capability error, not a crash.
+run = "cctv.ptz.goto_preset"
+device = "uvc-02"
+args = { ip = "$vars.cam", preset = 1 }
+expect = { error_kind = "capability" }

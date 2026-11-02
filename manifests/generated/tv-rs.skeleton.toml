@@ -1,0 +1,61 @@
+# lab authoring layer — generated skeleton, fill in the TODOs
+# workspace: tv-rs
+
+schema_version = 1
+
+[workspace]
+name = "tv-rs"
+prefix = "TODO"
+repo = "https://github.com/Zakarialabib"
+facade = "TODO"
+core = "TODO"
+version = "TODO"
+
+[[commands]]
+id = "tv.wake"
+label = "tv.wake"  # TODO: human label
+# kind = "action" | "query" | "config"
+# danger = "safe" | "attention" | "destructive"
+# from doc comment: Wake-on-LAN magic packet, no control protocol needed.
+# timeout_ms = 8000
+
+[[commands]]
+id = "tv.power_off"
+label = "tv.power_off"  # TODO: human label
+# kind = "action" | "query" | "config"
+# danger = "safe" | "attention" | "destructive"
+# from doc comment: Turn the panel off; WoL can bring it back.
+# timeout_ms = 8000
+
+[[commands]]
+id = "tv.power_state"
+label = "tv.power_state"  # TODO: human label
+# kind = "action" | "query" | "config"
+# danger = "safe" | "attention" | "destructive"
+# from doc comment: Read the observed power state with its confidence tag.
+# timeout_ms = 8000
+
+[[commands]]
+id = "tv.key_press"
+label = "tv.key_press"  # TODO: human label
+# kind = "action" | "query" | "config"
+# danger = "safe" | "attention" | "destructive"
+# from doc comment: Press a remote key on a paired device.
+# timeout_ms = 8000
+
+[[commands]]
+id = "tv.launch"
+label = "tv.launch"  # TODO: human label
+# kind = "action" | "query" | "config"
+# danger = "safe" | "attention" | "destructive"
+# from doc comment: Launch an app by vendor id.
+# timeout_ms = 8000
+
+[[commands]]
+id = "tv.set_volume"
+label = "tv.set_volume"  # TODO: human label
+# kind = "action" | "query" | "config"
+# danger = "safe" | "attention" | "destructive"
+# from doc comment: Set the volume on channels that expose it.
+# timeout_ms = 8000
+

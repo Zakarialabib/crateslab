@@ -1,0 +1,83 @@
+{
+  "source": "crates/lab-generate/src/testdata/tv_command_id.rs",
+  "generated_at": "unix:1793650372",
+  "commands": [
+    {
+      "id": "tv.wake",
+      "variant": "Wake",
+      "doc": "Wake-on-LAN magic packet, no control protocol needed.",
+      "crate_path": "crates/lab-generate/src/testdata/tv_command_id.rs",
+      "args": []
+    },
+    {
+      "id": "tv.power_off",
+      "variant": "PowerOff",
+      "doc": "Turn the panel off; WoL can bring it back.",
+      "crate_path": "crates/lab-generate/src/testdata/tv_command_id.rs",
+      "args": []
+    },
+    {
+      "id": "tv.power_state",
+      "variant": "PowerState",
+      "doc": "Read the observed power state with its confidence tag.",
+      "crate_path": "crates/lab-generate/src/testdata/tv_command_id.rs",
+      "args": []
+    },
+    {
+      "id": "tv.key_press",
+      "variant": "KeyPress",
+      "doc": "Press a remote key on a paired device.",
+      "crate_path": "crates/lab-generate/src/testdata/tv_command_id.rs",
+      "args": [
+        {
+          "name": "key",
+          "type": "str",
+          "required": true,
+          "options": [],
+          "default": null,
+          "help": "Key name, vendor-specific spelling accepted (e.g. `home`)."
+        },
+        {
+          "name": "repeat",
+          "type": "int",
+          "required": false,
+          "options": [],
+          "default": null,
+          "help": "Repeat count; None means a single press."
+        }
+      ]
+    },
+    {
+      "id": "tv.launch",
+      "variant": "Launch",
+      "doc": "Launch an app by vendor id.",
+      "crate_path": "crates/lab-generate/src/testdata/tv_command_id.rs",
+      "args": [
+        {
+          "name": "app_id",
+          "type": "str",
+          "required": true,
+          "options": [],
+          "default": null,
+          "help": "Vendor app id, e.g. netflix."
+        }
+      ]
+    },
+    {
+      "id": "tv.set_volume",
+      "variant": "SetVolume",
+      "doc": "Set the volume on channels that expose it.",
+      "crate_path": "crates/lab-generate/src/testdata/tv_command_id.rs",
+      "args": [
+        {
+          "name": "level",
+          "type": "int",
+          "required": true,
+          "options": [],
+          "default": null,
+          "help": null
+        }
+      ]
+    }
+  ]
+}

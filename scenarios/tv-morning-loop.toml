@@ -1,0 +1,35 @@
+# Morning loop for the tv-rs fleet — the canonical lab playlist.
+# Declarative steps only; the UI timeline renders exactly these.
+
+[scenario]
+name = "tv-morning-loop"
+target = "mock"
+on_fail = "abort"
+vars = { vendor = "roku", ip = "192.168.1.40" }
+
+[[steps]]
+run = "tv.power.state"
+args = { ip = "$vars.ip", vendor = "$vars.vendor" }
+expect = "ok"
+
+[[steps]]
+run = "tv.power.wake"
+args = { mac = "AA:BB:CC:DD:EE:FF" }
+expect = "ok"
+within_ms = 3000
+
+[[steps]]
+run = "tv.power.state"
+args = { ip = "$vars.ip", vendor = "$vars.vendor" }
+expect = { state = { key = "power", equals = "On" } }
+poll = { attempts = 5, interval_ms = 100 }
+
+[[steps]]
+run = "tv.key.press"
+args = { ip = "$vars.ip", vendor = "$vars.vendor", key = "home" }
+expect = "ok"
+
+[[steps]]
+run = "tv.launch.app"
+args = { ip = "$vars.ip", app_id = "netflix" }
+expect = "ok"

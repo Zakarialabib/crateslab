@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Segoe UI", "Noto Sans SC", system-ui, sans-serif; background: #ffffff; width: 1500px; }
+  .canvas { width: 1500px; padding: 28px 34px 34px; position: relative; }
+  .layer { display: flex; align-items: stretch; gap: 22px; }
+  .layer + .layer { margin-top: 64px; }
+  .node {
+    border: 2px solid #2d7ab3; background: #e4ecf5; border-radius: 12px;
+    padding: 16px 20px; flex: 1;
+  }
+  .node h4 { font-size: 26px; color: #142840; font-weight: 700; margin-bottom: 6px; }
+  .node p { font-size: 19px; color: #5a7a96; line-height: 1.45; }
+  .node.dim { background: #f5f8fc; border-style: dashed; border-color: #c0d0e2; }
+  .node.dark { background: #1a4a7a; border-color: #1a4a7a; }
+  .node.dark h4 { color: #e8f0f8; }
+  .node.dark p { color: #a8c8e0; }
+  svg.wires { position: absolute; inset: 0; pointer-events: none; }
+  .port {
+    border: 2px solid #2d7ab3; border-radius: 999px; background: #ffffff;
+    font-size: 18px; color: #1a4a7a; padding: 6px 22px; font-weight: 600;
+    position: absolute;
+  }
+</style>
+</head>
+<body>
+<div class="canvas" id="cv">
+  <!-- Layer 1: shell -->
+  <div class="layer">
+    <div class="node dark" style="flex: 2.6;">
+      <h4>shell — Tauri v2 webview</h4>
+      <p>manifest-driven panels · command console · scenario timeline · coverage heatmap · discovery &amp; drift view</p>
+    </div>
+    <div class="node dim" style="flex: 1;">
+      <h4>manifests/</h4>
+      <p>authored TOML + generated JSON, validated &amp; merged by lab-manifest</p>
+    </div>
+  </div>
+
+  <!-- Layer 2: engine -->
+  <div class="layer">
+    <div class="node" style="flex: 2.6;">
+      <h4>lab-engine</h4>
+      <p>local + registry discovery · workspace matching &amp; drift · runner (limits, confirmation, booking) · headless lab CLI</p>
+    </div>
+    <div class="node" style="flex: 1;">
+      <h4>lab-coverage</h4>
+      <p>(workspace, command, arg-bucket) ledger → heatmap, markdown, JSON</p>
+    </div>
+  </div>
+
+  <!-- Layer 3: services -->
+  <div class="layer">
+    <div class="node">
+      <h4>lab-mocks</h4>
+      <p>virtual fleet · honest capability sets · deterministic chaos · token buckets · Rhai behaviours</p>
+    </div>
+    <div class="node">
+      <h4>lab-scenarios</h4>
+      <p>TOML playlists · expects &amp; polls · sandboxed Rhai generative steps · step reports</p>
+    </div>
+    <div class="node">
+      <h4>lab-errors</h4>
+      <p>LabError taxonomy · remedies · manifest-declared mapping rules per workspace</p>
+    </div>
+  </div>
+
+  <!-- Layer 4: workspaces under test -->
+  <div class="layer">
+    <div class="node dim">
+      <h4>tv-rs (14 crates)</h4>
+      <p>facade + core device model · Tizen / webOS / Roku / MDC / DLNA / CEC · agent · media server</p>
+    </div>
+    <div class="node dim">
+      <h4>cctv-rs (11 crates)</h4>
+      <p>facade + core device model · ONVIF / RTSP / RTP / Ezviz / UVC · detection · agent</p>
+    </div>
+    <div class="node dim">
+      <h4>mediamaster-rs (v0.2)</h4>
+      <p>event bus · audio zones · SDR RF · sensors — expansion target</p>
+    </div>
+  </div>
+
+  <svg class="wires" id="wires"></svg>
+</div>
+<script>
+  // Adjacent-layer connectors only; distributed entry points, no lines through nodes.
+  const wires = document.getElementById('wires');
+  const cv = document.getElementById('cv');
+  const cvr = cv.getBoundingClientRect();
+  wires.setAttribute('width', cvr.width); wires.setAttribute('height', cvr.height);
+  wires.setAttribute('viewBox', `0 0 ${cvr.width} ${cvr.height}`);
+  function box(el) { const r = el.getBoundingClientRect(); return { x: r.x - cvr.x, y: r.y - cvr.y, w: r.width, h: r.height }; }
+  function wire(from, to, fx = 0.5, tx = 0.5) {
+    const a = box(from), b = box(to);
+    const x1 = a.x + a.w * fx, y1 = a.y + a.h;
+    const x2 = b.x + b.w * tx, y2 = b.y;
+    const mid = (y1 + y2) / 2;
+    wires.insertAdjacentHTML('beforeend',
+      `<path d="M ${x1} ${y1} C ${x1} ${mid}, ${x2} ${mid}, ${x2} ${y2}" fill="none" stroke="#2d7ab3" stroke-width="2.5" opacity="0.75"/>
+       <circle cx="${x2}" cy="${y2}" r="5" fill="#1a4a7a"/>`);
+  }
+  const layers = document.querySelectorAll('.layer');
+  const L1 = layers[0].children, L2 = layers[1].children, L3 = layers[2].children, L4 = layers[3].children;
+  wire(L1[0], L2[0], 0.5, 0.45);            // shell -> engine
+  wire(L1[1], L2[0], 0.5, 0.62);            // manifests -> engine
+  wire(L2[0], L2[1], 0.82, 0.45);           // engine -> coverage (same row, curved)
+  wire(L2[0], L3[0], 0.2, 0.5);             // engine -> mocks
+  wire(L2[0], L3[1], 0.5, 0.5);             // engine -> scenarios
+  wire(L2[0], L3[2], 0.8, 0.5);             // engine -> errors
+  wire(L3[0], L4[0], 0.3, 0.5);             // mocks -> tv-rs
+  wire(L3[0], L4[1], 0.5, 0.4);             // mocks -> cctv-rs
+  wire(L3[0], L4[2], 0.7, 0.5);             // mocks -> mediamaster (expansion)
+  // CommandSink port chip between L3 and L4
+  const chip = document.createElement('div');
+  chip.className = 'port';
+  chip.textContent = 'CommandSink port — mock fleet today, hardware adapter tomorrow';
+  chip.style.left = (cvr.width / 2 - 300) + 'px';
+  chip.style.top = (box(L4[0]).y - 48) + 'px';
+  cv.appendChild(chip);
+</script>
+</body>
+</html>

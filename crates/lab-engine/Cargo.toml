@@ -1,0 +1,29 @@
+[package]
+name = "lab-engine"
+description = "The lab engine: discovers workspaces locally or on crates.io, matches them to lab manifests, reports version drift, and drives command invocations with limits + coverage booking. Ships the headless `lab` CLI."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+toml = { workspace = true }
+lab-errors = { workspace = true }
+lab-manifest = { workspace = true }
+lab-mocks = { workspace = true }
+lab-coverage = { workspace = true }
+lab-scenarios = { workspace = true }
+lab-conformance = { workspace = true }
+ureq = { workspace = true, optional = true }
+
+[features]
+default = []
+# Online discovery: resolve latest versions from the crates.io sparse index.
+registry = ["dep:ureq"]
+
+[[bin]]
+name = "lab"
+path = "src/bin/lab.rs"

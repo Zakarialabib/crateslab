@@ -1,0 +1,12 @@
+[package]
+name = "lab-errors"
+description = "Standardized error taxonomy for the cratelab test lab: one error vocabulary for every workspace, with remedy hints and manifest-driven mapping tables."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+thiserror = { workspace = true }

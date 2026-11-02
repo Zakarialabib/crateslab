@@ -1,0 +1,211 @@
+# lab authoring layer — cctv-rs
+# Same vocabulary as tv-rs: the point is that ONE lab speaks BOTH workspaces
+# without a second UI or a second runner.
+
+schema_version = 1
+
+[workspace]
+name = "cctv-rs"
+prefix = "cctv"
+repo = "https://github.com/Zakarialabib/cctv-rs"
+facade = "cctv-rs"
+core = "cctv-core"
+version = "0.2.0"
+
+[errors]
+source = "cctv-core::Error"
+[[errors.mapping]]
+matches = "Capability*"
+to = "capability"
+retryable = false
+
+[[errors.mapping]]
+matches = "Onvif*"
+to = "transport"
+retryable = true
+note = "SOAP 1.2 over the shared HTTP client; retries are safe (idempotent reads)"
+
+[[errors.mapping]]
+matches = "Auth*"
+to = "auth"
+retryable = false
+note = "WS-Security UsernameToken clock skew or rejected credentials"
+
+[[errors.mapping]]
+matches = "Rtsp*"
+to = "transport"
+retryable = true
+
+[[device_classes]]
+id = "camera"
+mock_backend = "cctv-core mock suite"
+capability_source = "CameraBackend"
+capabilities = ["stream", "ptz", "presets", "detect", "discovery"]
+
+[[device_classes]]
+id = "uvc"
+mock_backend = "cctv-core mock suite"
+capability_source = "CameraBackend"
+capabilities = ["stream"]
+
+[[commands]]
+id = "cctv.discovery.sweep"
+label = "SSDP + WS-Discovery sweep"
+kind = "action"
+danger = "safe"
+variant = "DiscoverySweep"
+args = [
+  { name = "timeout_ms", type = "int", default = 3000, min = 100, max = 60000 },
+  { name = "protocols", type = "enum", options = ["ssdp", "ws-discovery", "both"], default = "both" },
+]
+timeout_ms = 8000
+emits = ["cctv.device.seen"]
+help = "UDP multicast sweep with deterministic deduplication."
+
+[[commands]]
+id = "cctv.stream.open"
+label = "Open stream"
+kind = "action"
+danger = "safe"
+variant = "StreamOpen"
+args = [
+  { name = "ip", type = "ipv4" },
+  { name = "profile", type = "str", min_len = 1, max_len = 256, help = "ONVIF profile token or RTSP path" },
+]
+timeout_ms = 10000
+emits = ["cctv.stream.stats"]
+
+[[commands]]
+id = "cctv.stream.snapshot"
+label = "Snapshot"
+kind = "query"
+danger = "safe"
+variant = "Snapshot"
+args = [{ name = "ip", type = "ipv4" }]
+timeout_ms = 6000
+help = "Single frame via SnapshotProxy (GOP-cached in the agent)."
+
+[[commands]]
+id = "cctv.ptz.move"
+label = "PTZ move"
+kind = "action"
+danger = "attention"
+variant = "PtzMove"
+args = [
+  { name = "ip", type = "ipv4" },
+  { name = "pan", type = "float", default = 0 },
+  { name = "tilt", type = "float", default = 0 },
+  { name = "zoom", type = "float", default = 0 },
+]
+timeout_ms = 6000
+rate_limit = { per_second = 2, burst = 1 }
+
+[[commands]]
+id = "cctv.ptz.stop"
+label = "PTZ stop"
+kind = "action"
+danger = "safe"
+variant = "PtzStop"
+args = [{ name = "ip", type = "ipv4" }]
+timeout_ms = 3000
+
+[[commands]]
+id = "cctv.ptz.goto_preset"
+label = "PTZ goto preset"
+kind = "action"
+danger = "attention"
+variant = "PtzGotoPreset"
+args = [
+  { name = "ip", type = "ipv4" },
+  { name = "preset", type = "int", default = 1, min = 1, max = 255 },
+]
+timeout_ms = 6000
+emits = ["cctv.motion.alarm"]
+
+[[commands]]
+id = "cctv.detect.zones"
+label = "List detection zones"
+kind = "query"
+danger = "safe"
+variant = "DetectZones"
+args = [{ name = "ip", type = "ipv4" }]
+timeout_ms = 5000
+
+[[commands]]
+id = "cctv.detect.configure"
+label = "Configure detection monitor"
+kind = "config"
+danger = "attention"
+variant = "DetectConfigure"
+args = [
+  { name = "ip", type = "ipv4" },
+  { name = "zone", type = "json", help = "Zone polygon + settings" },
+]
+timeout_ms = 8000
+
+[[commands]]
+id = "cctv.agent.reconcile"
+label = "Reconcile camera fleet"
+kind = "config"
+danger = "attention"
+variant = "AgentReconcile"
+args = [{ name = "desired", type = "path" }]
+timeout_ms = 15000
+help = "Deterministic reconciler with graded remediation and audit trail."
+
+[[events]]
+id = "cctv.motion.alarm"
+source = "poll"
+payload = "DetectionReport"
+confidence = "reported"
+help = "Detection reports from cctv-detect; the agent polls."
+
+[[events]]
+id = "cctv.stream.stats"
+source = "bus"
+payload = "StreamStats"
+
+[[events]]
+id = "cctv.device.seen"
+source = "bus"
+payload = "DiscoveredDevice"
+
+[[events]]
+id = "cctv.ezviz.alarm"
+source = "websocket"
+payload = "EzvizAlarm"
+help = "Ezviz Open Platform push alarms."
+
+[[servers]]
+id = "cctv.snapshot.proxy"
+crate = "cctv-agent"
+default_port = 8554
+health_path = "/healthz"
+routes = [
+  "GET /camera/{id}/snapshot — GOP-cached frame",
+  "GET /camera/{id}/stream — StreamMux replica",
+]
+
+[[limits]]
+id = "cctv.rtsp.frame_budget"
+kind = "budget"
+applies_to = "cctv-transport"
+description = "Budgeted FrameReader: a slow camera cannot eat the reader."
+
+[[limits]]
+id = "cctv.rtp.parse"
+kind = "budget"
+applies_to = "cctv-rtp"
+description = "Zero-alloc H.264/H.265 depacketisation with bounded output."
+
+[[limits]]
+id = "cctv.agent.streammux"
+kind = "pool"
+applies_to = "cctv-agent"
+description = "StreamMux fans one upstream stream out to N subscribers."
+
+[[limits]]
+id = "cctv.agent.reconcile_rate"
+kind = "rate"
+applies_to = "cctv-agent"
+description = "Graded remediation cadence; escalation is never instant."

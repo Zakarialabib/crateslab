@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    @page { size: 794px 1123px; margin: 0; }
+    :root {
+      --c-bg: #0a1628;
+      --c-accent: #4da8da;
+      --c-text: #e8f0f8;
+      --c-muted: #7a9bb8;
+      --c-glow: #2d7ab3;
+    }
+    html, body { margin: 0; padding: 0; width: 794px; height: 1123px; background: var(--c-bg); color: var(--c-text); font-family: 'Inter', sans-serif; }
+    @media screen {
+      html { height: auto; display: flex; justify-content: center; min-height: 100vh; background: var(--c-bg); }
+      body { transform-origin: top center; scale: min(1, calc(100vw / 794), calc(100vh / 1123)); margin: 0 auto; box-shadow: 0 0 60px rgba(0,0,0,0.4); }
+    }
+    .cover { width: 794px; height: 1123px; position: relative; }
+
+    /* Layer 1 — background glows, clipped */
+    .layer1 { position: absolute; inset: 0; overflow: hidden; z-index: 1; }
+    .glow-a { position: absolute; left: 40px; top: 60px; width: 420px; height: 420px;
+      background: radial-gradient(circle, rgba(45,122,179,0.14) 0%, rgba(45,122,179,0) 70%); }
+    .glow-b { position: absolute; right: 30px; bottom: 90px; width: 480px; height: 480px;
+      background: radial-gradient(circle, rgba(77,168,218,0.10) 0%, rgba(77,168,218,0) 70%); }
+
+    /* Layer 2 — luminous frame */
+    .layer2 { position: absolute; inset: 0; z-index: 2; }
+    .frame { position: absolute; left: 60px; right: 60px; top: 80px; bottom: 80px;
+      border: 2px solid var(--c-accent); }
+
+    /* Layer 3 — content */
+    .layer3 { position: absolute; inset: 0; z-index: 3; }
+    .kicker {
+      position: absolute; left: 110px; top: 135px;
+      font-size: 11pt; font-weight: 300; letter-spacing: 5px;
+      color: var(--c-accent); text-transform: uppercase;
+    }
+    .title {
+      position: absolute; left: 110px; top: 236px;
+      font-family: 'Playfair Display', serif; font-weight: 900;
+      font-size: 50pt; line-height: 1.15; color: var(--c-text);
+      text-shadow: 0 0 26px rgba(45,122,179,0.45); max-width: 560px;
+    }
+    .summary {
+      position: absolute; left: 110px; top: 505px;
+      font-size: 15px; line-height: 1.7; color: var(--c-muted); max-width: 520px;
+    }
+    .org {
+      position: absolute; left: 110px; top: 719px;
+      font-size: 18px; font-weight: 500; color: var(--c-text);
+    }
+    .org small { display: block; font-size: 12px; font-weight: 300; color: var(--c-muted); margin-top: 6px; letter-spacing: 0.5px; }
+    .date {
+      position: absolute; left: 110px; bottom: 128px;
+      font-size: 10pt; letter-spacing: 3px; color: var(--c-muted); text-transform: uppercase;
+    }
+  </style>
+</head>
+<body>
+  <div class="cover">
+    <div class="layer1">
+      <div class="glow-a"></div>
+      <div class="glow-b"></div>
+    </div>
+    <div class="layer2">
+      <div class="frame"></div>
+    </div>
+    <div class="layer3">
+      <div class="kicker">Architecture Blueprint · v0.1</div>
+      <div class="title">The Crate<br>Lab</div>
+      <div class="summary">
+        One manifest turns a published Rust workspace into a testable, UI-generatable
+        surface. cratelab reads tv-rs and cctv-rs — typed command enums, capability
+        sets, error taxonomies — and derives the rest: generative panels, scenario
+        playlists, a coverage heatmap, and limit fuzzing against a mock fleet that
+        never sleeps.
+      </div>
+      <div class="org">
+        Zakaria Labib
+        <small>tv-rs · cctv-rs · mediamaster-rs — crates as backend and facade</small>
+      </div>
+      <div class="date">November 2026 · Mock-first, hardware behind a toggle</div>
+    </div>
+  </div>
+</body>
+</html>

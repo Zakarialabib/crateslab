@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Segoe UI", "Noto Sans SC", system-ui, sans-serif; background: #ffffff; width: 1500px; }
+  .canvas { width: 1500px; padding: 30px 40px 40px; position: relative; }
+  .row { display: flex; gap: 26px; align-items: stretch; }
+  .row + .row { margin-top: 92px; }
+  .node { border: 2px solid #2d7ab3; background: #e4ecf5; border-radius: 12px; padding: 16px 20px; flex: 1; }
+  .node h4 { font-size: 25px; color: #142840; font-weight: 700; margin-bottom: 6px; }
+  .node p { font-size: 18px; color: #5a7a96; line-height: 1.45; }
+  .node.src { background: #f5f8fc; border-style: dashed; border-color: #c0d0e2; }
+  .node.merge { background: #1a4a7a; border-color: #1a4a7a; }
+  .node.merge h4 { color: #e8f0f8; }
+  .node.merge p { color: #a8c8e0; }
+  .tag {
+    display: inline-block; font-size: 15px; color: #1a4a7a; border: 1.5px solid #c0d0e2;
+    border-radius: 999px; padding: 2px 12px; margin-top: 8px; background: #ffffff; font-weight: 600;
+  }
+  svg.wires { position: absolute; inset: 0; pointer-events: none; }
+</style>
+</head>
+<body>
+<div class="canvas" id="cv">
+  <div class="row">
+    <div class="node src">
+      <h4>typed command enum</h4>
+      <p><code>CommandId</code> in tv-rs-core / cctv-core — variants + doc comments + field types, already maintained by the workspace</p>
+      <span class="tag">source of truth</span>
+    </div>
+    <div class="node">
+      <h4>lab-generate</h4>
+      <p>syn parses the enum: variants → snake ids, docs → help, field types → arg widgets</p>
+      <span class="tag">cargo run -p lab-generate</span>
+    </div>
+    <div class="node">
+      <h4>generated JSON layer</h4>
+      <p>ids · variants · docs · argument shapes — regenerated on every release, never hand-edited</p>
+      <span class="tag">proposes</span>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="node">
+      <h4>authored TOML layer</h4>
+      <p>labels · danger levels · timeouts · rate limits · mock scripts · servers · limits · quirks</p>
+      <span class="tag">disposes</span>
+    </div>
+    <div class="node merge">
+      <h4>lab-manifest — merge &amp; validate</h4>
+      <p>matches by id or variant · refuses unknown emits, duplicates, wrong prefixes · one validated surface per workspace</p>
+      <span class="tag">single artifact</span>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="node">
+      <h4>generative UI</h4>
+      <p>panels &amp; forms rendered from args · confirm flow for destructive commands</p>
+    </div>
+    <div class="node">
+      <h4>runner semantics</h4>
+      <p>capability refusals · token buckets · timeouts · event expectations</p>
+    </div>
+    <div class="node">
+      <h4>coverage ledger</h4>
+      <p>every outcome books a (command, arg-bucket) cell → heatmap</p>
+    </div>
+  </div>
+
+  <svg class="wires" id="wires"></svg>
+</div>
+<script>
+  const wires = document.getElementById('wires');
+  const cv = document.getElementById('cv');
+  const cvr = cv.getBoundingClientRect();
+  wires.setAttribute('width', cvr.width); wires.setAttribute('height', cvr.height);
+  wires.setAttribute('viewBox', `0 0 ${cvr.width} ${cvr.height}`);
+  function box(el) { const r = el.getBoundingClientRect(); return { x: r.x - cvr.x, y: r.y - cvr.y, w: r.width, h: r.height }; }
+  function wire(from, to, fx = 0.5, tx = 0.5, dashed = false) {
+    const a = box(from), b = box(to);
+    const x1 = a.x + a.w * fx, y1 = a.y + a.h;
+    const x2 = b.x + b.w * tx, y2 = b.y;
+    const mid = (y1 + y2) / 2;
+    wires.insertAdjacentHTML('beforeend',
+      `<path d="M ${x1} ${y1} C ${x1} ${mid}, ${x2} ${mid}, ${x2} ${y2}" fill="none" stroke="#2d7ab3" stroke-width="2.5" opacity="0.8"${dashed ? ' stroke-dasharray="7 6"' : ''}/>
+       <circle cx="${x2}" cy="${y2}" r="5" fill="#1a4a7a"/>`);
+  }
+  // Same-row connector: straight horizontal from A's right edge to B's left edge.
+  function hwire(from, to, dashed = false) {
+    const a = box(from), b = box(to);
+    const y = (Math.max(a.y, b.y) + Math.min(a.y + a.h, b.y + b.h)) / 2;
+    wires.insertAdjacentHTML('beforeend',
+      `<path d="M ${a.x + a.w} ${y} L ${b.x} ${y}" fill="none" stroke="#2d7ab3" stroke-width="2.5" opacity="0.8"${dashed ? ' stroke-dasharray="7 6"' : ''}/>
+       <circle cx="${b.x}" cy="${y}" r="5" fill="#1a4a7a"/>`);
+  }
+  const rows = document.querySelectorAll('.row');
+  const R1 = rows[0].children, R2 = rows[1].children, R3 = rows[2].children;
+  hwire(R1[0], R1[1]);                       // enum -> generator
+  hwire(R1[1], R1[2]);                       // generator -> generated JSON
+  wire(R1[2], R2[1], 0.5, 0.30);             // generated -> merge
+  hwire(R2[0], R2[1], true);                 // authored -> merge (dispose)
+  wire(R2[1], R3[0], 0.25, 0.5);             // merge -> UI
+  wire(R2[1], R3[1], 0.5, 0.5);              // merge -> runner
+  wire(R2[1], R3[2], 0.75, 0.5);             // merge -> ledger
+</script>
+</body>
+</html>

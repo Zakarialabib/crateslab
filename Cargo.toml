@@ -1,0 +1,41 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/lab-errors",
+    "crates/lab-manifest",
+    "crates/lab-coverage",
+    "crates/lab-mocks",
+    "crates/lab-scenarios",
+    "crates/lab-conformance",
+    "crates/lab-engine",
+    "crates/lab-generate",
+]
+# NOTE: shell/src-tauri is a standalone Tauri v2 application workspace.
+# It is intentionally NOT a member here so that `cargo test --workspace`
+# stays green on machines without webkit2gtk / Tauri system dependencies.
+# Build it separately:  cd shell/src-tauri && cargo build
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+authors = ["Zakaria Labib"]
+repository = "https://github.com/Zakarialabib"
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+thiserror = "2"
+rhai = { version = "1", features = ["sync"] }
+ureq = { version = "2", default-features = false, features = ["json", "tls"] }
+syn = { version = "2", features = ["full", "parsing", "printing", "extra-traits"] }
+quote = "1"
+
+lab-errors = { path = "crates/lab-errors" }
+lab-manifest = { path = "crates/lab-manifest" }
+lab-coverage = { path = "crates/lab-coverage" }
+lab-mocks = { path = "crates/lab-mocks" }
+lab-scenarios = { path = "crates/lab-scenarios" }
+lab-conformance = { path = "crates/lab-conformance" }
+lab-engine = { path = "crates/lab-engine" }

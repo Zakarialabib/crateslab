@@ -1,0 +1,18 @@
+[package]
+name = "lab-scenarios"
+description = "Scenario playlists for the lab: declarative TOML timelines (steps, expects, polls, timeouts) plus sandboxed Rhai steps for generative logic. Produces step-level reports the UI timelines render."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+toml = { workspace = true }
+rhai = { workspace = true }
+lab-errors = { workspace = true }
+lab-manifest = { workspace = true }
+lab-mocks = { workspace = true }
+lab-coverage = { workspace = true }

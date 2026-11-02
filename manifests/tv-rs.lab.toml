@@ -1,0 +1,260 @@
+# lab authoring layer — tv-rs
+# The generated layer (lab-generate on tv-rs-core::CommandId) proposes ids,
+# variants and docs; this file disposes: labels, danger, timeouts, limits,
+# mock bindings, servers, quirks. Merge rule: generated proposes, this disposes.
+
+schema_version = 1
+
+[workspace]
+name = "tv-rs"
+prefix = "tv"
+repo = "https://github.com/Zakarialabib/tv-rs"
+facade = "tv-rs"
+core = "tv-rs-core"
+version = "0.6.0"
+
+[errors]
+source = "tv-rs-core::Error"
+# One vocabulary for thirteen crates: map the workspace's typed errors into
+# LabError kinds so the UI, runner and CI all branch on the same set.
+[[errors.mapping]]
+matches = "Capability*"
+to = "capability"
+retryable = false
+note = "per-vendor capability sets refuse before any socket is opened"
+
+[[errors.mapping]]
+matches = "Pairing*"
+to = "auth"
+retryable = false
+note = "Samsung token / LG client-key pairing problems"
+
+[[errors.mapping]]
+matches = "Timeout*"
+to = "timeout"
+
+[[errors.mapping]]
+matches = "Transport*"
+to = "transport"
+retryable = true
+
+# Virtual fleet: one device per class, capabilities honest per backend —
+# the consumer channels refuse panel controls exactly like the real ones do.
+[[device_classes]]
+id = "tv"
+mock_backend = "tv-rs-core mock backend (feature mock-backend)"
+capability_source = "DeviceHandle"
+capabilities = ["power", "volume", "key", "launch"]
+
+[[device_classes]]
+id = "dlna"
+mock_backend = "tv-rs-core mock backend"
+capability_source = "DeviceHandle"
+capabilities = ["media"]
+
+[[device_classes]]
+id = "lfd"
+mock_backend = "tv-rs-core mock backend"
+capability_source = "DeviceHandle"
+capabilities = ["power", "volume", "panel"]
+
+[[commands]]
+id = "tv.power.wake"
+label = "Wake (WoL)"
+kind = "action"
+danger = "safe"
+variant = "Wake"
+args = [{ name = "mac", type = "mac", help = "Target MAC address" }]
+timeout_ms = 3000
+conformance = "must"
+invariants = ["idempotent"]
+emits = ["tv.power.changed"]
+help = "Wake-on-LAN magic packet; works with no control protocol at all."
+
+[[commands]]
+id = "tv.power.off"
+label = "Power off"
+kind = "action"
+danger = "destructive"
+variant = "PowerOff"
+args = [
+  { name = "ip", type = "ipv4" },
+  { name = "vendor", type = "enum", options = ["samsung", "lg", "roku", "mdc"] },
+]
+timeout_ms = 8000
+rate_limit = { per_second = 1, burst = 2 }
+conformance = "must"
+emits = ["tv.power.changed"]
+
+[[commands]]
+id = "tv.power.state"
+label = "Observed power state"
+kind = "query"
+danger = "safe"
+variant = "PowerState"
+args = [
+  { name = "ip", type = "ipv4" },
+  { name = "vendor", type = "enum", options = ["samsung", "lg", "roku"] },
+]
+timeout_ms = 4000
+rate_limit = { per_second = 5, burst = 1 }
+conformance = "must"
+invariants = ["idempotent"]
+help = "power_observation(): state plus how it was learned (High = read, Inferred = probed)."
+
+[[commands]]
+id = "tv.key.press"
+label = "Press key"
+kind = "action"
+danger = "attention"
+variant = "KeyPress"
+args = [
+  { name = "ip", type = "ipv4" },
+  { name = "vendor", type = "enum", options = ["samsung", "lg", "roku", "bluetooth"] },
+  { name = "key", type = "enum", options = ["home", "back", "vol_up", "vol_down", "mute", "play", "pause"] },
+  { name = "repeat", type = "int", required = false, default = 1, min = 1, max = 10 },
+]
+timeout_ms = 6000
+
+[[commands]]
+id = "tv.launch.app"
+label = "Launch app"
+kind = "action"
+danger = "safe"
+variant = "Launch"
+args = [
+  { name = "ip", type = "ipv4" },
+  { name = "app_id", type = "str", min_len = 1, max_len = 64, help = "Vendor app id, e.g. netflix" },
+]
+timeout_ms = 8000
+emits = ["tv.launch.started"]
+
+[[commands]]
+id = "tv.volume.set"
+label = "Set volume"
+kind = "action"
+danger = "attention"
+variant = "SetVolume"
+args = [
+  { name = "ip", type = "ipv4" },
+  { name = "level", type = "int", default = 10, min = 0, max = 100 },
+]
+timeout_ms = 5000
+conformance = "must"
+
+[[commands]]
+id = "tv.volume.mute"
+label = "Mute"
+kind = "action"
+danger = "attention"
+variant = "Mute"
+args = [
+  { name = "ip", type = "ipv4" },
+  { name = "mute", type = "bool", default = true },
+]
+timeout_ms = 5000
+mock = "tv/mute.rhai"
+
+[[commands]]
+id = "tv.panel.orientation"
+label = "Panel orientation (LFD)"
+kind = "action"
+danger = "attention"
+variant = "SetPanelOrientation"
+args = [
+  { name = "ip", type = "ipv4" },
+  { name = "degrees", type = "enum", options = ["0", "90", "180", "270"] },
+]
+timeout_ms = 5000
+help = "MDC-only. Consumer channels refuse this — by capability set, not by error."
+
+[[commands]]
+id = "tv.media.push"
+label = "Push URL to DLNA renderer"
+kind = "action"
+danger = "safe"
+variant = "MediaPush"
+args = [
+  { name = "url", type = "url", max_len = 2048 },
+]
+timeout_ms = 10000
+emits = ["tv.dlna.lastchange"]
+mock = "tv/media_push.rhai"
+
+[[commands]]
+id = "tv.agent.ensure"
+label = "Reconcile fleet to desired state"
+kind = "config"
+danger = "attention"
+variant = "EnsureDesiredState"
+args = [{ name = "config", type = "path" }]
+timeout_ms = 15000
+help = "One pure decide() pass of tv-rs-agent; audit trail appended as JSONL."
+
+[[events]]
+id = "tv.power.changed"
+source = "poll"
+payload = "PowerState"
+confidence = "reported"
+help = "The agent polls; there is no vendor push channel yet."
+
+[[events]]
+id = "tv.launch.started"
+source = "bus"
+payload = "LaunchEvent"
+
+[[events]]
+id = "tv.dlna.lastchange"
+source = "gena"
+payload = "AVTransportState"
+help = "GENA subscription via tv-rs-dlna; LastChange payloads."
+
+[[events]]
+id = "tv.ws.remote"
+source = "websocket"
+payload = "RemoteChannelEvent"
+help = "Tizen (8001/8002) or webOS (3000/3001) WebSocket channel."
+
+[[events]]
+id = "tv.agent.desired"
+source = "mqtt"
+payload = "DesiredState"
+help = "MQTT provider (agent feature mqtt)."
+
+[[servers]]
+id = "tv.media.hls"
+crate = "tv-rs-media"
+default_port = 8123
+health_path = "/health"
+routes = [
+  "GET /v/{file} — HTTP 206 Partial Content for seeking",
+  "GET /index.m3u8 — HLS playlist",
+]
+
+[[limits]]
+id = "tv.ws.frames"
+kind = "budget"
+applies_to = "tv-rs-transport"
+description = "Budgeted WebSocket frame reader caps per-connection frame budget."
+
+[[limits]]
+id = "tv.pool.per_tv"
+kind = "pool"
+applies_to = "tv-rs-tizen"
+description = "Per-TV connection pool; one socket per panel, reused."
+
+[[limits]]
+id = "tv.agent.actions"
+kind = "rate"
+applies_to = "tv-rs-agent"
+description = "Reconciler invariant: no device exceeds one action per hour."
+
+[[limits]]
+id = "tv.conformance"
+kind = "concurrency"
+applies_to = "tv-rs-core"
+description = "Conformance suite runs backends serially by design."
+
+[quirks]
+file = "quirks/default.toml"
+feature = "quirks"

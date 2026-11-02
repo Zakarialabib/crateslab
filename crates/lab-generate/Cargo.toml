@@ -1,0 +1,20 @@
+[package]
+name = "lab-generate"
+description = "The generated-manifest layer: parses a workspace's typed CommandId enum (doc comments included) with syn and emits the JSON skeleton the lab manifests merge with. Also writes an authoring-layer TOML skeleton."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+syn = { workspace = true }
+quote = { workspace = true }
+lab-errors = { workspace = true }
+lab-manifest = { workspace = true }
+
+[[bin]]
+name = "lab-generate"
+path = "src/main.rs"

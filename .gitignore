@@ -1,0 +1,14 @@
+/target
+.env
+*.pem
+.git-msg.txt
+*.stackdump
+*.dmp
+.meta.json
+
+# carve-out: downloaded desktop helper binaries must never be committed
+claude*.exe
+node_modules
+/tests/e2e_suite
+/.agents
+shell/src-tauri/target

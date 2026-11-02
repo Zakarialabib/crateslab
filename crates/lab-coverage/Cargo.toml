@@ -1,0 +1,14 @@
+[package]
+name = "lab-coverage"
+description = "The lab's coverage ledger: which parts of a workspace's manifest surface the lab has actually exercised, as data — cells, heatmaps, markdown and JSON reports."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+lab-errors = { workspace = true }
+lab-manifest = { workspace = true }
