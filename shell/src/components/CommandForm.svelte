@@ -9,7 +9,10 @@
 
   function initialValues(c: CommandSpec): Record<string, unknown> {
     const init: Record<string, unknown> = {};
-    for (const a of c.args) if (a.default !== undefined) init[a.name] = a.default;
+    for (const a of c.args) {
+      if (a.default !== undefined) init[a.name] = a.default;
+      else if (a.example !== undefined) init[a.name] = a.example;
+    }
     return init;
   }
 

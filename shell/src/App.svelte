@@ -6,16 +6,18 @@
   import CoverageView from "./components/CoverageView.svelte";
   import ScenariosView from "./components/ScenariosView.svelte";
   import DiscoveryView from "./components/DiscoveryView.svelte";
+  import FleetView from "./components/FleetView.svelte";
 
-  type View = "commands" | "events" | "servers" | "limits" | "coverage" | "scenarios" | "discovery";
-  const views: View[] = ["commands", "events", "servers", "limits", "coverage", "scenarios", "discovery"];
+  type View = "fleet" | "commands" | "events" | "servers" | "limits" | "coverage" | "scenarios" | "discovery";
+  const views: View[] = ["fleet", "commands", "events", "servers", "limits", "coverage", "scenarios", "discovery"];
 
   let workspaces = $state<WorkspaceSummary[]>([]);
   let current = $state("");
   let manifest = $state<Manifest | null>(null);
-  let view = $state<View>("commands");
+  let view = $state<View>("fleet");
   let backend = $state("mock");
   let error = $state<string[] | null>(null);
+  let manifestWarns = $state<string[]>([]);
 
   onMount(async () => {
     try {
@@ -30,6 +32,10 @@
     } catch {
       // the chip keeps its default and the sidebar stays usable
     }
+    api
+      .manifestErrors()
+      .then((errs) => (manifestWarns = errs ?? []))
+      .catch(() => (manifestWarns = []));
   });
 
   $effect(() => {
@@ -44,7 +50,7 @@
 
 <div class="shell">
   <aside class="sidebar">
-    <div class="brand">cratelab<small>the crate bench</small></div>
+    <div class="brand">cratelab<small>test drives for your crates</small></div>
 
     <div class="ws-list">
       {#each workspaces as w (w.name)}
@@ -68,8 +74,20 @@
   </aside>
 
   <main class="main">
+    {#if view === "fleet"}
+      <FleetView />
+    {:else}
     {#if error}
       <div class="result err">{error.join("\n")}</div>
+    {/if}
+
+    {#if manifestWarns.length > 0}
+      <div class="result warn">
+        <strong>manifests that failed to load</strong>
+        {#each manifestWarns as w (w)}
+          <div style="margin-top:4px">{w}</div>
+        {/each}
+      </div>
     {/if}
 
     {#if manifest && current}
@@ -145,6 +163,7 @@
 
     {#if !manifest && !error}
       <p class="sub">loading manifests…</p>
+    {/if}
     {/if}
   </main>
 </div>

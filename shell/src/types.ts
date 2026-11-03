@@ -19,6 +19,7 @@ export interface ArgSpec {
   options?: string[];
   default?: unknown;
   help?: string;
+  example?: unknown;
   min?: number;
   max?: number;
   min_len?: number;
@@ -131,4 +132,74 @@ export interface HeatRow {
   buckets_covered: number; runs: number; pass: number; refused: number;
   failed: number; timeout: number; rate_limited: number;
   status: "pass" | "partial" | "failed" | "uncovered";
+}
+
+export interface UrlProbe {
+  ok: boolean;
+  status: number | null;
+  latency_ms: number;
+  content_type?: string | null;
+  error?: string;
+}
+
+export interface FleetProvider {
+  id: string;
+  name: string;
+  role: string;
+  credential_ready: boolean;
+  selected: boolean;
+  kind: string;
+  note: string;
+  state: string;
+  probe_supported: boolean;
+  probe_destination?: string | null;
+  probe_ok?: boolean | null;
+  probe_checked_at?: number | null;
+  available_models: string[];
+  selected_model: string;
+}
+
+export interface FleetRun {
+  task: string;
+  target: string;
+  mode: string;
+  source_files: number;
+  doc_candidates: number;
+  report: string;
+  completed_at: number;
+  provider?: string;
+  model?: string;
+  source_bytes?: number;
+  usage?: Record<string, number>;
+}
+
+export interface FleetLivePreview {
+  provider: string;
+  model: string;
+  destination: string;
+  target: string;
+  files: string[];
+  source_bytes: number;
+  output_limit_tokens: number;
+  retry_policy: string;
+  route: { provider: string; model: string; destination: string; requests_left_today: number }[];
+}
+
+export interface FleetStatus {
+  control_center: string;
+  target: string;
+  target_path: string;
+  target_available: boolean;
+  pilot: { workspace: string; crates: { id: string; package: string }[]; batch_size: number; tasks: string[] };
+  selected_provider: string;
+  providers: FleetProvider[];
+  runs: FleetRun[];
+  usage: { day?: string; requests?: Record<string, number>; tokens?: Record<string, number> };
+  daily_caps: Record<string, number>;
+  safe_mode: {
+    provider_calls: boolean;
+    network: boolean;
+    github_writes: boolean;
+    target_writes: boolean;
+  };
 }

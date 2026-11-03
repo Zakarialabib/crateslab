@@ -152,6 +152,9 @@ pub struct ArgSpec {
     pub default: Option<serde_json::Value>,
     #[serde(default)]
     pub help: Option<String>,
+    /// Example value pre-filled by generated UIs (editable, not authoritative).
+    #[serde(default)]
+    pub example: Option<serde_json::Value>,
     /// Inclusive lower bound for `Int`/`Float`.
     #[serde(default)]
     pub min: Option<f64>,
@@ -697,6 +700,7 @@ applies_to = "tv-rs-transport"
                         options: vec![],
                         default: None,
                         help: None,
+                        example: None,
                         min: None,
                         max: None,
                         min_len: None,

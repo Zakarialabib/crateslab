@@ -160,6 +160,7 @@ fn extract_args(variant: &syn::Variant) -> Vec<ArgSpec> {
                 options: Vec::new(),
                 default: None,
                 help: extract_doc(&f.attrs),
+                example: None,
                 min: None,
                 max: None,
                 min_len: None,

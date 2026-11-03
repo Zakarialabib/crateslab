@@ -4,7 +4,7 @@
 // browser fallback on purpose: the engine is the only source of truth, so the
 // UI can never show data the lab did not actually produce.
 import { invoke } from "@tauri-apps/api/core";
-import type { HeatRow, LabErrorValue, Manifest, ScenarioReport, SinkOutcome, WorkspaceSummary } from "./types";
+import type { FleetLivePreview, FleetRun, FleetStatus, HeatRow, LabErrorValue, Manifest, ScenarioReport, SinkOutcome, UrlProbe, WorkspaceSummary } from "./types";
 
 export const api = {
   workspaces: (): Promise<WorkspaceSummary[]> => invoke("workspaces"),
@@ -30,6 +30,29 @@ export const api = {
     invoke("discover_local", { root }),
 
   setBackend: (backend: string): Promise<never> => invoke("set_backend", { backend }),
+
+  probeUrl: (url: string): Promise<UrlProbe> => invoke("probe_url", { url }),
+
+  manifestErrors: (): Promise<string[]> => invoke("manifest_errors"),
+
+  fleetStatus: (): Promise<FleetStatus> => invoke("fleet_status"),
+
+  fleetSelectProvider: (provider: string): Promise<FleetStatus> =>
+    invoke("fleet_select_provider", { provider }),
+
+  fleetDryRun: (task: string, crateId: string): Promise<FleetRun> => invoke("fleet_dry_run", { task, crateId }),
+
+  fleetProbeProvider: (provider: string): Promise<{ provider: string; ok: boolean; status: number; checked_at: number; models: string[]; summary: string }> =>
+    invoke("fleet_probe_provider", { provider }),
+
+  fleetSelectModel: (provider: string, model: string): Promise<FleetStatus> =>
+    invoke("fleet_select_model", { provider, model }),
+
+  fleetPreviewLive: (provider: string, model: string, crateId: string, task: string): Promise<FleetLivePreview> =>
+    invoke("fleet_preview_live", { provider, model, crateId, task }),
+
+  fleetGenerateAudit: (provider: string, model: string, crateId: string, task: string): Promise<{ run: FleetRun; answer: string; preview: FleetLivePreview }> =>
+    invoke("fleet_generate_audit", { provider, model, crateId, task }),
 };
 
 export function errorToLines(e: LabErrorValue | string): string[] {
