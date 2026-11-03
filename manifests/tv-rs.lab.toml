@@ -64,7 +64,7 @@ label = "Wake (WoL)"
 kind = "action"
 danger = "safe"
 variant = "Wake"
-args = [{ name = "mac", type = "mac", help = "Target MAC address" }]
+args = [{ name = "mac", type = "mac", help = "Target MAC address", example = "AA-BB-CC-DD-EE-FF" }]
 timeout_ms = 3000
 conformance = "must"
 invariants = ["idempotent"]
@@ -78,7 +78,7 @@ kind = "action"
 danger = "destructive"
 variant = "PowerOff"
 args = [
-  { name = "ip", type = "ipv4" },
+  { name = "ip", type = "ipv4", example = "192.168.1.40" },
   { name = "vendor", type = "enum", options = ["samsung", "lg", "roku", "mdc"] },
 ]
 timeout_ms = 8000
@@ -93,7 +93,7 @@ kind = "query"
 danger = "safe"
 variant = "PowerState"
 args = [
-  { name = "ip", type = "ipv4" },
+  { name = "ip", type = "ipv4", example = "192.168.1.40" },
   { name = "vendor", type = "enum", options = ["samsung", "lg", "roku"] },
 ]
 timeout_ms = 4000
@@ -109,7 +109,7 @@ kind = "action"
 danger = "attention"
 variant = "KeyPress"
 args = [
-  { name = "ip", type = "ipv4" },
+  { name = "ip", type = "ipv4", example = "192.168.1.40" },
   { name = "vendor", type = "enum", options = ["samsung", "lg", "roku", "bluetooth"] },
   { name = "key", type = "enum", options = ["home", "back", "vol_up", "vol_down", "mute", "play", "pause"] },
   { name = "repeat", type = "int", required = false, default = 1, min = 1, max = 10 },
@@ -123,8 +123,8 @@ kind = "action"
 danger = "safe"
 variant = "Launch"
 args = [
-  { name = "ip", type = "ipv4" },
-  { name = "app_id", type = "str", min_len = 1, max_len = 64, help = "Vendor app id, e.g. netflix" },
+  { name = "ip", type = "ipv4", example = "192.168.1.40" },
+  { name = "app_id", type = "str", min_len = 1, max_len = 64, help = "Vendor app id, e.g. netflix", example = "netflix" },
 ]
 timeout_ms = 8000
 emits = ["tv.launch.started"]
@@ -136,7 +136,7 @@ kind = "action"
 danger = "attention"
 variant = "SetVolume"
 args = [
-  { name = "ip", type = "ipv4" },
+  { name = "ip", type = "ipv4", example = "192.168.1.40" },
   { name = "level", type = "int", default = 10, min = 0, max = 100 },
 ]
 timeout_ms = 5000
@@ -149,7 +149,7 @@ kind = "action"
 danger = "attention"
 variant = "Mute"
 args = [
-  { name = "ip", type = "ipv4" },
+  { name = "ip", type = "ipv4", example = "192.168.1.40" },
   { name = "mute", type = "bool", default = true },
 ]
 timeout_ms = 5000
@@ -162,7 +162,7 @@ kind = "action"
 danger = "attention"
 variant = "SetPanelOrientation"
 args = [
-  { name = "ip", type = "ipv4" },
+  { name = "ip", type = "ipv4", example = "192.168.1.40" },
   { name = "degrees", type = "enum", options = ["0", "90", "180", "270"] },
 ]
 timeout_ms = 5000
@@ -175,7 +175,7 @@ kind = "action"
 danger = "safe"
 variant = "MediaPush"
 args = [
-  { name = "url", type = "url", max_len = 2048 },
+  { name = "url", type = "url", max_len = 2048, help = "DLNA renderer or stream URL — use Test to probe reachability", example = "http://192.168.1.50:8123/stream/hls" },
 ]
 timeout_ms = 10000
 emits = ["tv.dlna.lastchange"]

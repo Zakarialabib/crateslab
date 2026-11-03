@@ -1,0 +1,17 @@
+{
+  "control_center": "C:/laragon/www/cratelab",
+  "target": {
+    "name": "tv-rs",
+    "workspace_root": "C:/laragon/www/tv-rs",
+    "crate_dir": "crates/*",
+    "batch_size": 3,
+    "phase_one_tasks": ["rustdoc-audit", "research-summary"]
+  },
+  "execution": {
+    "network": true,
+    "provider_calls": true,
+    "github_writes": false,
+    "target_writes": false
+  },
+  "forbidden_paths": ["Cargo.toml", "Cargo.lock", ".github/**", ".circleci/**"]
+}

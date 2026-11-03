@@ -303,7 +303,7 @@
         {liveBusy ? "Preparing…" : "Preview outbound model run"}
       </button>
       <button class="primary run-button" onclick={runDryRun} disabled={busy || loading || !status?.target_available}>
-        {#if busy}<span class="button-spinner"></span> Working…{:else}<span>▶</span> Run local dry audit{/if}
+        {#if busy}<span class="button-spinner"></span> Working…{:else}<span>▶</span> Run local {task === "research-summary" ? "inventory" : "dry audit"}{/if}
       </button>
       <p class="button-caption">Scans the selected crate and writes a local report. No edits, issues, or PRs.</p>
       {#if lastRun}
@@ -349,14 +349,14 @@
   </section>
 
   <section class="rag-panel panel">
-    <div class="panel-heading"><div><span class="section-kicker">KNOWLEDGE PIPELINE</span><h2>Retrieval-augmented context</h2><p>Build only when direct crate context stops being enough.</p></div><span class="local-only">NOT DEPLOYED</span></div>
+    <div class="panel-heading"><div><span class="section-kicker">KNOWLEDGE PIPELINE</span><h2>Retrieval-augmented context</h2><p>Full tv-rs corpus is built locally; embedding and hosted search remain staged.</p></div><span class="local-only">LOCAL CORPUS</span></div>
     <div class="rag-track">
-      <div class="rag-step"><span>01 · SOURCE</span><strong>tv-rs workspace</strong><small>All {status?.pilot.crates.length ?? 0} crates catalogued</small></div><span class="rag-arrow">→</span>
+      <div class="rag-step"><span>01 · SOURCE</span><strong>tv-rs workspace</strong><small>All {status?.pilot.crates.length ?? 0} crates catalogued · corpus stays local</small></div><span class="rag-arrow">→</span>
       <div class="rag-step rag-pending"><span>02 · EMBED</span><strong>Kaggle + BGE-M3</strong><small>Batch index with crate:// headers</small></div><span class="rag-arrow">→</span>
       <div class="rag-step rag-pending"><span>03 · STORE</span><strong>Hugging Face</strong><small>Private dataset is source of truth</small></div><span class="rag-arrow">→</span>
       <div class="rag-step rag-pending"><span>04 · SEARCH</span><strong>Modal /search</strong><small>Optional Qdrant serving layer</small></div>
     </div>
-    <div class="rag-foot"><span>Current mode: direct local source scan</span><span>No dataset upload, embedding job, or hosted endpoint has run</span></div>
+    <div class="rag-foot"><span>Current mode: direct selected-crate scan</span><span>No dataset upload, embedding job, or hosted endpoint has run</span></div>
   </section>
 
   <section class="panel history-panel">

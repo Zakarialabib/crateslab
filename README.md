@@ -41,6 +41,9 @@ they sit on.
 | `lab-coverage` | The coverage ledger: `(workspace, command, arg-bucket)` cells, heatmap rows, markdown/JSON reports. |
 | `lab-engine` | Discovery (local checkout / crates.io sparse index behind a feature), matching + drift, the runner, and the headless `lab` CLI. |
 | `shell/` | Tauri v2 app: manifest-driven panels, command console, timeline, coverage heatmap, scenario composer. Standalone workspace. |
+| `fleet/` | Crate-evolution control plane assets: tv-rs crate catalog dispatch, local batch queue, bounded provider router, RAG corpus builder, Modal search and CircleCI templates. |
+
+The Fleet screen and `fleet/` module are part of this cratelab project. Safe source/templates are tracked; `fleet/.env`, `fleet/state/`, `fleet/reports/`, and `fleet/data/` hold local credentials and generated artifacts and stay ignored. The pilot targets all crates in the local `tv-rs` workspace, triages three tasks per batch, and limits work to research/documentation. Provider calls require an explicit per-run confirmation; target and GitHub writes are not enabled.
 
 ## Quick start
 
