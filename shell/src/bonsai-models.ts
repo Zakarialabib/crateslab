@@ -3,7 +3,7 @@
 /// No model is downloaded locally: the session serves it, so the picker is
 /// driven by what `/models` reports plus a hardware-capability hint.
 ///
-/// Numbers come from docs/specs/colab-model-capacity.md (Colab tiers + GGUF
+/// Numbers come from docs/11-providers-and-capacity.md (Colab tiers + GGUF
 /// weight sizes). The practical ceiling on Colab is the ~120B MoE class on an
 /// A100-80 / G4-96 GB box; 150B+ and 405B-class are not loadable (weights alone
 /// exceed the card, and host RAM caps CPU offload).

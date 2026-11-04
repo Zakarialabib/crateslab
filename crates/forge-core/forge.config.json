@@ -22,7 +22,7 @@
     "artifact": "cratelab-crates-index.jsonl",
     "dataset_repo_env": "HF_CRATES_DATASET_REPO",
     "dataset_revision_env": "HF_CRATES_DATASET_REVISION",
-    "modal_app": "fleet/modal/crate_intelligence_app.py",
+    "modal_app": "crates/forge-sidecar/remotes/modal/crate_intelligence_app.py",
     "modal_endpoint_env": "CRATE_INTEL_MODAL_SEARCH_URL",
     "kaggle_kernel_env": "KAGGLE_KERNEL_ID",
     "scope": "private source intelligence; source stays separate from tv-rs target and signage docs"
