@@ -142,7 +142,7 @@ export interface UrlProbe {
   error?: string;
 }
 
-export interface FleetProvider {
+export interface ForgeProvider {
   id: string;
   name: string;
   role: string;
@@ -160,7 +160,7 @@ export interface FleetProvider {
   selected_model: string;
 }
 
-export interface FleetRun {
+export interface ForgeRun {
   task: string;
   target: string;
   mode: string;
@@ -175,7 +175,7 @@ export interface FleetRun {
   usage?: Record<string, number>;
 }
 
-export interface FleetLivePreview {
+export interface ForgeLivePreview {
   provider: string;
   model: string;
   destination: string;
@@ -193,17 +193,17 @@ export interface FleetLivePreview {
   retrieval_destination?: string | null;
 }
 
-export interface FleetStatus {
+export interface ForgeStatus {
   control_center: string;
   target: string;
   target_path: string;
   target_available: boolean;
-  repositories: FleetRepository[];
+  repositories: ForgeRepository[];
   pilot: { workspace: string; crates: { id: string; package: string }[]; batch_size: number; tasks: string[] };
   retrieval: { enabled: boolean; destination: string; projects?: string[] };
   selected_provider: string;
-  providers: FleetProvider[];
-  runs: FleetRun[];
+  providers: ForgeProvider[];
+  runs: ForgeRun[];
   usage: { day?: string; requests?: Record<string, number>; tokens?: Record<string, number> };
   daily_caps: Record<string, number>;
   safe_mode: {
@@ -214,12 +214,12 @@ export interface FleetStatus {
   };
 }
 
-export interface FleetRepository { id: string; name: string; root: string; available: boolean; crate_count: number; crates: { id: string; package: string }[] }
-export interface FleetReport { name: string; kind: string; repository?: string | null; crate?: string | null; task?: string | null; size: number; modified: number; path: string }
-export interface FleetReportContent { name: string; path: string; content: string }
-export interface FleetDashboardData {
+export interface ForgeRepository { id: string; name: string; root: string; available: boolean; crate_count: number; crates: { id: string; package: string }[] }
+export interface ForgeReport { name: string; kind: string; repository?: string | null; crate?: string | null; task?: string | null; size: number; modified: number; path: string }
+export interface ForgeReportContent { name: string; path: string; content: string }
+export interface ForgeDashboardData {
   target: string;
-  repositories: FleetRepository[];
+  repositories: ForgeRepository[];
   crates: { id: string; package: string }[];
   runs: {
     total: number;
@@ -229,7 +229,7 @@ export interface FleetDashboardData {
     recent: { completed_at: number; repository?: string; crate_id: string; target?: string; task: string; mode: string; source_files?: number; doc_candidates?: number; report?: string }[];
   };
   coverage: { workspace: string; percent: number; rows: number }[];
-  reports: { count: number; latest: FleetReport[] };
+  reports: { count: number; latest: ForgeReport[] };
   providers: { ready: number; total: number };
   usage: { day?: string; requests?: Record<string, number>; tokens?: Record<string, number> };
 }
@@ -286,5 +286,5 @@ export interface CircleCiDashboard {
 export interface CrateResearchPrompt { crate: string; task: string; description: string; prompt: string; evidence_items: number; prompt_template: string }
 export interface CrateKnowledgeSearch { crate: string; query: string; revision: string; hits: { score: number; project: string; crate: string; kind: string; source: string; path: string; start_line: number; revision: string; text: string }[]; count: number }
 
-export interface FleetSettingField { key: string; secret: boolean; configured: boolean; value: string | null; setup_url?: string | null }
-export interface FleetSettingsSnapshot { fields: FleetSettingField[]; env_path: string; modal_cli_installed: boolean; modal_profile_configured: boolean; hf_cli_installed: boolean; kaggle_cli_installed: boolean; crate_index_present: boolean; crate_index_bytes: number }
+export interface ForgeSettingField { key: string; secret: boolean; configured: boolean; value: string | null; setup_url?: string | null }
+export interface ForgeSettingsSnapshot { fields: ForgeSettingField[]; env_path: string; modal_cli_installed: boolean; modal_profile_configured: boolean; hf_cli_installed: boolean; kaggle_cli_installed: boolean; crate_index_present: boolean; crate_index_bytes: number }

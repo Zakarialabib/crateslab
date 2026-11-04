@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { api, errorToLines } from "./api";
-  import type { FleetStatus, Manifest } from "./types";
+  import type { ForgeStatus, Manifest } from "./types";
   import CommandsView from "./components/CommandsView.svelte";
   import CoverageView from "./components/CoverageView.svelte";
   import ScenariosView from "./components/ScenariosView.svelte";
@@ -9,17 +9,17 @@
   import DashboardView from "./components/DashboardView.svelte";
   import AutomationView from "./components/AutomationView.svelte";
   import ReportsView from "./components/ReportsView.svelte";
-  import FleetSettings from "./components/FleetSettings.svelte";
+  import ForgeSettings from "./components/ForgeSettings.svelte";
   import TopHeader from "./components/TopHeader.svelte";
 
   // The sidebar states the mission, not the implementation:
   // Project (state & evolution) → Automation → Reports → Settings → Lab tools.
-  type View = "dashboard" | "fleet" | "ops-dashboard" | "reports" | "fleet-settings" | "commands" | "events" | "servers" | "limits" | "coverage" | "scenarios" | "discovery";
+  type View = "dashboard" | "forge" | "ops-dashboard" | "reports" | "forge-settings" | "commands" | "events" | "servers" | "limits" | "coverage" | "scenarios" | "discovery";
   const groups: { label: string; items: { id: View; label: string }[] }[] = [
     { label: "Project", items: [{ id: "dashboard", label: "Dashboard" }] },
-    { label: "Automation", items: [{ id: "fleet", label: "Workflows" }, { id: "ops-dashboard", label: "Integrations & scenarios" }] },
+    { label: "Automation", items: [{ id: "forge", label: "Workflows" }, { id: "ops-dashboard", label: "Integrations & scenarios" }] },
     { label: "Evidence", items: [{ id: "reports", label: "Reports" }] },
-    { label: "Settings", items: [{ id: "fleet-settings", label: "Providers & credentials" }] },
+    { label: "Settings", items: [{ id: "forge-settings", label: "Providers & credentials" }] },
     { label: "Lab tools", items: [
       { id: "commands", label: "Commands" }, { id: "events", label: "Events" }, { id: "servers", label: "Servers" },
       { id: "limits", label: "Limits" }, { id: "coverage", label: "Coverage" }, { id: "scenarios", label: "Scenarios" }, { id: "discovery", label: "Discovery" },
@@ -32,23 +32,23 @@
   let backend = $state("mock");
   let error = $state<string[] | null>(null);
   let manifestWarns = $state<string[]>([]);
-  let fleetStatus = $state<FleetStatus | null>(null);
+  let forgeStatus = $state<ForgeStatus | null>(null);
   let repositoryBusy = $state(false);
 
-  // Header: breadcrumb + counters. Every number here comes from fleet_status.
+  // Header: breadcrumb + counters. Every number here comes from forge_status.
   const sectionOf = $derived(groups.find((group) => group.items.some((item) => item.id === view))?.label ?? "");
   const viewLabelOf = $derived(groups.flatMap((group) => group.items).find((item) => item.id === view)?.label ?? "");
-  const probed = $derived(fleetStatus?.providers.filter((p) => p.probe_ok === true).length ?? 0);
-  const configured = $derived(fleetStatus?.providers.filter((p) => p.credential_ready).length ?? 0);
-  const providerTotal = $derived(fleetStatus?.providers.length ?? 0);
+  const probed = $derived(forgeStatus?.providers.filter((p) => p.probe_ok === true).length ?? 0);
+  const configured = $derived(forgeStatus?.providers.filter((p) => p.credential_ready).length ?? 0);
+  const providerTotal = $derived(forgeStatus?.providers.length ?? 0);
   const quickCases = $derived(
-    (fleetStatus?.runs ?? []).slice(0, 5).map((run) => ({ label: run.task, hint: `${run.target} · ${run.mode}` })),
+    (forgeStatus?.runs ?? []).slice(0, 5).map((run) => ({ label: run.task, hint: `${run.target} · ${run.mode}` })),
   );
   const navCounts = $derived<Record<string, string>>({
-    fleet: `${fleetStatus?.pilot.crates.length ?? 0} crates`,
+    forge: `${forgeStatus?.pilot.crates.length ?? 0} crates`,
     "ops-dashboard": `${configured} configured`,
-    reports: `${fleetStatus?.runs.length ?? 0} runs`,
-    "fleet-settings": `${probed}/${providerTotal}`,
+    reports: `${forgeStatus?.runs.length ?? 0} runs`,
+    "forge-settings": `${probed}/${providerTotal}`,
   });
 
   onMount(async () => {
@@ -67,13 +67,13 @@
       .manifestErrors()
       .then((errs) => (manifestWarns = errs ?? []))
       .catch(() => (manifestWarns = []));
-    api.fleetStatus().then((next) => { fleetStatus = next; current = next.target; }).catch(() => {});
+    api.forgeStatus().then((next) => { forgeStatus = next; current = next.target; }).catch(() => {});
   });
 
   async function selectRepository(repository: string) {
     repositoryBusy = true;
     try {
-      fleetStatus = await api.fleetSelectRepository(repository);
+      forgeStatus = await api.forgeSelectRepository(repository);
       current = repository;
     } catch (e) { error = errorToLines(e as never); }
     finally { repositoryBusy = false; }
@@ -112,8 +112,8 @@
 
   <div class="content">
     <TopHeader
-      repositories={fleetStatus?.repositories ?? []}
-      target={fleetStatus?.target ?? ""}
+      repositories={forgeStatus?.repositories ?? []}
+      target={forgeStatus?.target ?? ""}
       {repositoryBusy}
       {probed}
       {providerTotal}
@@ -128,17 +128,17 @@
 
     <main class="main">
       <div class="workspace-context">
-        <div><span class="section-kicker">ACTIVE REPOSITORY</span><strong>{fleetStatus?.target ?? "Selecting workspace…"}</strong><small>{fleetStatus?.target_path ?? "Local Rust source used by Fleet workflows"} · switch scope in the header</small></div>
+        <div><span class="section-kicker">ACTIVE REPOSITORY</span><strong>{forgeStatus?.target ?? "Selecting workspace…"}</strong><small>{forgeStatus?.target_path ?? "Local Rust source used by Forge workflows"} · switch scope in the header</small></div>
       </div>
-      {#key fleetStatus?.target ?? "tv-rs"}
+      {#key forgeStatus?.target ?? "tv-rs"}
       {#if view === "dashboard"}
         <DashboardView onnav={(next) => (view = next as View)} />
-      {:else if view === "fleet" || view === "ops-dashboard"}
-        <AutomationView tab={view === "fleet" ? "workflows" : "integrations"} />
+      {:else if view === "forge" || view === "ops-dashboard"}
+        <AutomationView tab={view === "forge" ? "workflows" : "integrations"} />
       {:else if view === "reports"}
         <ReportsView />
-      {:else if view === "fleet-settings"}
-        <FleetSettings />
+      {:else if view === "forge-settings"}
+        <ForgeSettings />
       {:else}
       {#if error}
         <div class="result err">{error.join("\n")}</div>

@@ -1,10 +1,10 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { api } from "../api";
-  import type { FleetSettingField, FleetSettingsSnapshot, FleetStatus } from "../types";
+  import type { ForgeSettingField, ForgeSettingsSnapshot, ForgeStatus } from "../types";
 
-  let snapshot = $state<FleetSettingsSnapshot | null>(null);
-  let fleetStatus = $state<FleetStatus | null>(null);
+  let snapshot = $state<ForgeSettingsSnapshot | null>(null);
+  let forgeStatus = $state<ForgeStatus | null>(null);
   let drafts = $state<Record<string, string>>({});
   let busy = $state(false);
   let action = $state("");
@@ -54,21 +54,21 @@
   async function load() {
     error = "";
     try {
-      snapshot = await api.fleetGetSettings();
+      snapshot = await api.forgeGetSettings();
       drafts = Object.fromEntries(snapshot.fields.filter((field) => !field.secret).map((field) => [field.key, field.value ?? ""]));
     } catch (e) { error = String(e); }
-    try { fleetStatus = await api.fleetStatus(); } catch { /* readiness chip stays empty */ }
+    try { forgeStatus = await api.forgeStatus(); } catch { /* readiness chip stays empty */ }
   }
 
-  function field(key: string): FleetSettingField | undefined { return snapshot?.fields.find((item) => item.key === key); }
+  function field(key: string): ForgeSettingField | undefined { return snapshot?.fields.find((item) => item.key === key); }
   function label(key: string): string { return key.replaceAll("_", " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()); }
   // A secret is only ever rendered as dots — never as its value, never echoed.
   function masked(key: string): string { return field(key)?.configured ? "••••••••" : "not set"; }
   function setupUrl(key: string): string | null {
-    return field(key)?.setup_url ?? fleetStatus?.providers.find((p) => p.id === credentialProbe[key])?.setup_url ?? null;
+    return field(key)?.setup_url ?? forgeStatus?.providers.find((p) => p.id === credentialProbe[key])?.setup_url ?? null;
   }
   function probeState(key: string): string {
-    const provider = fleetStatus?.providers.find((p) => p.id === credentialProbe[key]);
+    const provider = forgeStatus?.providers.find((p) => p.id === credentialProbe[key]);
     if (!provider) return "—";
     if (provider.probe_ok === true) return "Probed ✓";
     if (provider.probe_ok === false) return "Probe failed";
@@ -85,9 +85,9 @@
     probeBusy = true;
     probeMessage = "";
     try {
-      const result = await api.fleetProbeProvider(providerId);
+      const result = await api.forgeProbeProvider(providerId);
       probeMessage = `${result.provider}: ${result.summary} (HTTP ${result.status})`;
-      fleetStatus = await api.fleetStatus();
+      forgeStatus = await api.forgeStatus();
       if (result.ok) probeKey = null;
     } catch (e) {
       probeMessage = String(e);
@@ -102,7 +102,7 @@
     try {
       const updates: Record<string, string> = { ...drafts };
       for (const item of snapshot.fields) if (item.secret && drafts[item.key]) updates[item.key] = drafts[item.key];
-      snapshot = await api.fleetSaveSettings(updates);
+      snapshot = await api.forgeSaveSettings(updates);
       drafts = Object.fromEntries(snapshot.fields.filter((item) => !item.secret).map((item) => [item.key, item.value ?? ""]));
       for (const item of snapshot.fields) if (item.secret) drafts[item.key] = "";
       message = "Saved locally. Secret values were not returned to the UI.";
@@ -113,7 +113,7 @@
   async function runTool(name: string, title: string) {
     busy = true; action = title; message = ""; error = "";
     try {
-      const result = await api.fleetRunTool(name);
+      const result = await api.forgeRunTool(name);
       const combined = [result.output, result.error].filter(Boolean).join("\n").trim();
       if (!result.ok) throw new Error(combined || `${title} failed`);
       message = combined || `${title} completed.`;
@@ -130,9 +130,9 @@
   }
 </script>
 
-<section class="fleet-settings-page">
-  <header class="fleet-header">
-    <div><div class="eyebrow"><span class="eyebrow-dot"></span> FREE-TIER RUNGS · LOCAL CREDENTIALS</div><h1>Providers &amp; credentials <span class="safe-pill">SECRETS MASKED</span></h1><p class="fleet-lede">Which free AI is usable right now. Every field carries its rung state, a How-to-get link, and a Probe — a cheap GET, never a spend endpoint. Values are saved only to the ignored local environment file.</p></div>
+<section class="forge-settings-page">
+  <header class="forge-header">
+    <div><div class="eyebrow"><span class="eyebrow-dot"></span> FREE-TIER RUNGS · LOCAL CREDENTIALS</div><h1>Providers &amp; credentials <span class="safe-pill">SECRETS MASKED</span></h1><p class="forge-lede">Which free AI is usable right now. Every field carries its rung state, a How-to-get link, and a Probe — a cheap GET, never a spend endpoint. Values are saved only to the ignored local environment file.</p></div>
     <button class="primary" onclick={save} disabled={busy}>{busy ? "Saving…" : "Save settings"}</button>
   </header>
 
@@ -183,7 +183,7 @@
         <article><strong>Hugging Face CLI</strong><p>{snapshot.hf_cli_installed ? "Installed · upload is orchestrated by the Rust desktop backend." : "Missing · install the official CLI to enable dataset uploads."}</p><a class="ghost settings-link" href="https://huggingface.co/docs/huggingface_hub/guides/cli" target="_blank" rel="noreferrer">CLI setup guide</a></article>
         <article><strong>Crate intelligence dataset</strong><p>Private internal source index: {field("HF_CRATES_DATASET_REPO")?.value || "set the repository name above"}. Local source scan and prompt/context pack run from the Ops dashboard.</p><a class="ghost settings-link" href="https://huggingface.co/new-dataset" target="_blank" rel="noreferrer">Create private HF dataset</a></article>
         <article><strong>Kaggle evaluation job</strong><p>{snapshot.kaggle_cli_installed ? "Kaggle CLI installed in CrateLab's isolated local environment." : "Kaggle CLI missing."} · Kernel: {field("KAGGLE_KERNEL_ID")?.value || "owner/kernel-slug needed"}. Job is private, CPU-first, and requires HF secrets configured in Kaggle.</p><a class="ghost settings-link" href="https://www.kaggle.com/settings/api" target="_blank" rel="noreferrer">Kaggle API settings</a> <a class="ghost settings-link" href="https://github.com/Kaggle/kaggle-cli/blob/main/docs/kernels.md" target="_blank" rel="noreferrer">Kernel job CLI guide</a></article>
-        <article><strong>CircleCI research/docs gates</strong><p>Fleet reads account, project, pipeline, and workflow status. The project slug list is comma-separated, for example <code>gh/Zakarialabib/tv-rs</code>. Connect the repository in CircleCI and add the reviewed gate config to its <code>.circleci/config.yml</code>.</p><a class="ghost settings-link" href="https://app.circleci.com/projects" target="_blank" rel="noreferrer">Connect CircleCI project</a> <a class="ghost settings-link" href="https://circleci.com/docs/api/v2/" target="_blank" rel="noreferrer">API reference</a></article>
+        <article><strong>CircleCI research/docs gates</strong><p>Forge reads account, project, pipeline, and workflow status. The project slug list is comma-separated, for example <code>gh/Zakarialabib/tv-rs</code>. Connect the repository in CircleCI and add the reviewed gate config to its <code>.circleci/config.yml</code>.</p><a class="ghost settings-link" href="https://app.circleci.com/projects" target="_blank" rel="noreferrer">Connect CircleCI project</a> <a class="ghost settings-link" href="https://circleci.com/docs/api/v2/" target="_blank" rel="noreferrer">API reference</a></article>
         <article><strong>Upload private signage dataset</strong><p>Create or update {field("HF_DATASET_REPO")?.value || "a dataset repo set above"} with the local docs corpus. Upload includes current uncommitted docs from both source projects.</p><button class="ghost" onclick={() => (confirmExternal = "upload")} disabled={busy || !snapshot.hf_cli_installed || !(field("HF_TOKEN_WRITE")?.configured || field("HF_TOKEN")?.configured) || !field("HF_DATASET_REPO")?.value}>Review upload</button></article>
         <article><strong>Deploy Modal search endpoint</strong><p>Create or replace the two Modal secrets and deploy the authenticated read-only search service using the pinned HF revision.</p><button class="ghost" onclick={() => (confirmExternal = "deploy")} disabled={busy || !(field("HF_READ_TOKEN")?.configured || field("HF_TOKEN")?.configured) || !field("HF_DATASET_REPO")?.value || !field("HF_DATASET_REVISION")?.value || !snapshot.modal_cli_installed || !snapshot.modal_profile_configured}>Review deployment</button></article>
       </div>
@@ -191,7 +191,7 @@
   {/if}
 
   {#if message}<div class="settings-notice" role="status">{message}</div>{/if}
-  {#if error}<div class="fleet-alert" role="alert">{error}</div>{/if}
+  {#if error}<div class="forge-alert" role="alert">{error}</div>{/if}
   {#if confirmExternal}
     <div class="modal-backdrop" role="presentation">
       <dialog class="confirm-modal" open aria-labelledby="external-action-title">
@@ -204,7 +204,7 @@
         {:else}
           <h2 id="external-action-title">Deploy Modal search?</h2>
           <p>This creates or replaces Modal secrets and deploys the authenticated search service for <strong>{field("HF_DATASET_REPO")?.value}</strong> at revision <strong>{field("HF_DATASET_REVISION")?.value}</strong>.</p>
-          <div class="modal-detail"><strong>Credentials sent to Modal</strong><span>{field("HF_READ_TOKEN")?.configured ? "The dedicated HF_READ_TOKEN" : "The configured HF_TOKEN"}, dataset repo and pinned revision are stored in the Modal secret so the service can download the private corpus. {field("HF_READ_TOKEN")?.configured ? "This uses the dedicated read token." : "Consider adding a least-privilege read-only HF_READ_TOKEN in Settings."} A generated search bearer token is also stored in a Modal secret and locally in fleet/.env.</span></div>
+          <div class="modal-detail"><strong>Credentials sent to Modal</strong><span>{field("HF_READ_TOKEN")?.configured ? "The dedicated HF_READ_TOKEN" : "The configured HF_TOKEN"}, dataset repo and pinned revision are stored in the Modal secret so the service can download the private corpus. {field("HF_READ_TOKEN")?.configured ? "This uses the dedicated read token." : "Consider adding a least-privilege read-only HF_READ_TOKEN in Settings."} A generated search bearer token is also stored in a Modal secret and locally in forge/.env.</span></div>
           <div class="modal-detail"><strong>Service behavior</strong><span>Deploy publishes an HTTPS endpoint that anyone can reach, but search requests require the bearer token. Modal compute may use account quota or incur charges depending on your plan and usage.</span></div>
         {/if}
         <div class="modal-actions"><button class="ghost" onclick={() => (confirmExternal = null)} disabled={busy}>Cancel</button><button class="primary" onclick={runConfirmedExternal} disabled={busy}>{confirmExternal === "upload" ? "Upload corpus" : "Create secrets and deploy"}</button></div>
@@ -225,5 +225,5 @@
       </dialog>
     </div>
   {/if}
-  <footer class="fleet-footer"><span>Secrets stay local in fleet/.env</span><span>Probe is a cheap GET — never a spend endpoint. Free tiers only: spend stays €0.00.</span></footer>
+  <footer class="forge-footer"><span>Secrets stay local in forge/.env</span><span>Probe is a cheap GET — never a spend endpoint. Free tiers only: spend stays €0.00.</span></footer>
 </section>

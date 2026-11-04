@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { FleetRepository } from "../types";
+  import type { ForgeRepository } from "../types";
 
   // The persistent header: identity, scope, environment, readiness,
   // breadcrumb and the two actions people actually open. It reads state;
@@ -18,7 +18,7 @@
     onselect,
     onnav,
   }: {
-    repositories?: FleetRepository[];
+    repositories?: ForgeRepository[];
     target?: string;
     repositoryBusy?: boolean;
     probed?: number;
@@ -67,7 +67,7 @@
 
   <button
     class="readiness-chip"
-    onclick={() => onnav?.("fleet-settings")}
+    onclick={() => onnav?.("forge-settings")}
     title={`${configured} configured · ${Math.max(0, providerTotal - probed)} unprobed. Configured and Probed are different claims.`}
   >
     rungs {probed}/{providerTotal} probed
@@ -87,10 +87,10 @@
           <span class="run-menu-empty">No case prepared yet — dry runs are local and free.</span>
         {:else}
           {#each quickCases as item (item.label + item.hint)}
-            <button onclick={() => onnav?.("fleet")}>{item.label}<small>{item.hint}</small></button>
+            <button onclick={() => onnav?.("forge")}>{item.label}<small>{item.hint}</small></button>
           {/each}
         {/if}
-        <button onclick={() => onnav?.("fleet")}>Open case workbench<small>repo · crate · task · provider</small></button>
+        <button onclick={() => onnav?.("forge")}>Open case workbench<small>repo · crate · task · provider</small></button>
       </div>
     </details>
     <button class="ghost topbar-action" onclick={() => onnav?.("reports")}>Reports</button>

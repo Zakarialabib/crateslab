@@ -1,26 +1,26 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { api } from "../api";
-  import { fleetWorkflows } from "../fleet-workflows";
-  import type { CircleCiDashboard, FleetLivePreview, FleetProvider, FleetRun, FleetStatus, LearningNote } from "../types";
+  import { forgeWorkflows } from "../forge-workflows";
+  import type { CircleCiDashboard, ForgeLivePreview, ForgeProvider, ForgeRun, ForgeStatus, LearningNote } from "../types";
 
-  let status = $state<FleetStatus | null>(null);
+  let status = $state<ForgeStatus | null>(null);
   let busy = $state(false);
   let loading = $state(true);
   let error = $state("");
-  let lastRun = $state<FleetRun | null>(null);
+  let lastRun = $state<ForgeRun | null>(null);
   let task = $state<string>("rustdoc-audit");
   let caseContext = $state("");
   let learningNotes = $state("");
   let crateId = $state("discovery");
-  const workflow = $derived(fleetWorkflows.find((item) => item.id === task));
+  const workflow = $derived(forgeWorkflows.find((item) => item.id === task));
   let ragProjectId = $state("simple-signage");
   type QueueItem = { id: string; repository?: string; crate_id: string; task: string; state: "pending" | "done" };
   let queue = $state<QueueItem[]>([]);
-  let probeTarget = $state<FleetProvider | null>(null);
+  let probeTarget = $state<ForgeProvider | null>(null);
   let probeBusy = $state(false);
   let probeMessage = $state("");
-  let livePreview = $state<FleetLivePreview | null>(null);
+  let livePreview = $state<ForgeLivePreview | null>(null);
   let liveBusy = $state(false);
   let liveAnswer = $state("");
   let liveError = $state("");
@@ -37,13 +37,13 @@
   ];
 
   onMount(() => {
-    try { queue = JSON.parse(localStorage.getItem("cratelab-fleet-queue") ?? "[]"); } catch { queue = []; }
+    try { queue = JSON.parse(localStorage.getItem("cratelab-forge-queue") ?? "[]"); } catch { queue = []; }
     void refresh();
   });
 
   function saveQueue(next: QueueItem[]) {
     queue = next;
-    localStorage.setItem("cratelab-fleet-queue", JSON.stringify(next));
+    localStorage.setItem("cratelab-forge-queue", JSON.stringify(next));
   }
 
   function stageBatch() {
@@ -73,7 +73,7 @@
     loading = true;
     error = "";
     try {
-      status = await api.fleetStatus();
+      status = await api.forgeStatus();
       if (!status.pilot.crates.some((crate) => crate.id === crateId)) crateId = status.pilot.crates[0]?.id ?? "";
       learningNotes = currentLearningNotes(status.target, task);
     } catch (e) {
@@ -87,7 +87,7 @@
     busy = true;
     error = "";
     try {
-      status = await api.fleetSelectProvider(id);
+      status = await api.forgeSelectProvider(id);
     } catch (e) {
       error = String(e);
     } finally {
@@ -100,9 +100,9 @@
     error = "";
     lastRun = null;
     try {
-      lastRun = await api.fleetDryRun(task, crateId, caseContext);
+      lastRun = await api.forgeDryRun(task, crateId, caseContext);
       completeQueueItem(status?.target ?? "tv-rs", crateId, task);
-      status = await api.fleetStatus();
+      status = await api.forgeStatus();
     } catch (e) {
       error = String(e);
     } finally {
@@ -110,7 +110,7 @@
     }
   }
 
-  function openProbe(p: FleetProvider) {
+  function openProbe(p: ForgeProvider) {
     if (!p.credential_ready || !p.probe_supported) return;
     probeMessage = "";
     probeTarget = p;
@@ -121,13 +121,13 @@
     probeBusy = true;
     probeMessage = "";
     try {
-      const result = await api.fleetProbeProvider(probeTarget.id);
+      const result = await api.forgeProbeProvider(probeTarget.id);
       probeMessage = result.summary;
-      status = await api.fleetStatus();
+      status = await api.forgeStatus();
       if (result.ok) probeTarget = null;
     } catch (e) {
       probeMessage = String(e);
-      status = await api.fleetStatus().catch(() => status);
+      status = await api.forgeStatus().catch(() => status);
     } finally {
       probeBusy = false;
     }
@@ -138,7 +138,7 @@
     if (!selected || !model) return;
     busy = true;
     try {
-      status = await api.fleetSelectModel(selected.id, model);
+      status = await api.forgeSelectModel(selected.id, model);
     } catch (e) {
       error = String(e);
     } finally {
@@ -154,7 +154,7 @@
     liveAnswer = "";
     try {
       learningNotes = currentLearningNotes(status?.target ?? "tv-rs", task);
-      livePreview = await api.fleetPreviewLive(selected.id, selected.selected_model, crateId, task, ragProjectId, caseContext, learningNotes);
+      livePreview = await api.forgePreviewLive(selected.id, selected.selected_model, crateId, task, ragProjectId, caseContext, learningNotes);
     } catch (e) {
       liveError = String(e);
     } finally {
@@ -167,11 +167,11 @@
     liveBusy = true;
     liveError = "";
     try {
-      const result = await api.fleetGenerateAudit(livePreview.provider, livePreview.model, crateId, task, livePreview.retrieval_project, caseContext, learningNotes);
+      const result = await api.forgeGenerateAudit(livePreview.provider, livePreview.model, crateId, task, livePreview.retrieval_project, caseContext, learningNotes);
       liveAnswer = result.answer;
       lastRun = result.run;
       completeQueueItem(status?.target ?? "tv-rs", crateId, task);
-      status = await api.fleetStatus();
+      status = await api.forgeStatus();
       livePreview = null;
     } catch (e) {
       liveError = String(e);
@@ -207,11 +207,11 @@
     setTimeout(() => (noteSaved = false), 2500);
   }
 
-  function selectedInference(): FleetProvider | undefined {
+  function selectedInference(): ForgeProvider | undefined {
     return status?.providers.find((p) => p.selected && ["gemini", "groq", "allam", "cloudflare", "nvidia", "openrouter", "zhipu", "modelscope", "colab-bonsai", "kaggle-bonsai"].includes(p.id));
   }
 
-  function provider(id: string): FleetProvider | undefined {
+  function provider(id: string): ForgeProvider | undefined {
     return status?.providers.find((p) => p.id === id);
   }
 
@@ -236,7 +236,7 @@
   async function loadCircleCi() {
     circleCiBusy = true;
     circleCiError = "";
-    try { circleCi = await api.fleetCircleciDashboard(); circleCiReview = false; }
+    try { circleCi = await api.forgeCircleciDashboard(); circleCiReview = false; }
     catch (e) { circleCiError = String(e); }
     finally { circleCiBusy = false; }
   }
@@ -245,22 +245,22 @@
   let providerCount = $derived(status?.providers.length ?? 0);
 </script>
 
-<section class="fleet-page" aria-labelledby="fleet-title">
-  <header class="fleet-header">
+<section class="forge-page" aria-labelledby="forge-title">
+  <header class="forge-header">
     <div>
       <div class="eyebrow"><span class="eyebrow-dot"></span> LOCAL CONTROL PLANE</div>
-      <h1 id="fleet-title">Work orchestration <span class="safe-pill">REVIEW BEFORE DISPATCH</span></h1>
-      <p class="fleet-lede">Prepare a case, choose local evidence or provider analysis, and review the result for {status?.target ?? "the selected repository"}.</p>
+      <h1 id="forge-title">Work orchestration <span class="safe-pill">REVIEW BEFORE DISPATCH</span></h1>
+      <p class="forge-lede">Prepare a case, choose local evidence or provider analysis, and review the result for {status?.target ?? "the selected repository"}.</p>
     </div>
     <button class="ghost refresh-button" onclick={refresh} disabled={loading} aria-label="Refresh local provider readiness">
       <span class:spin={loading}>↻</span> Refresh status
     </button>
   </header>
 
-  {#if error}<div class="fleet-alert" role="alert"><span>{error}</span><button class="alert-close" onclick={() => (error = "")} aria-label="Dismiss">×</button></div>{/if}
-  {#if loading}<p class="fleet-lede">Loading fleet state…</p>{/if}
+  {#if error}<div class="forge-alert" role="alert"><span>{error}</span><button class="alert-close" onclick={() => (error = "")} aria-label="Dismiss">×</button></div>{/if}
+  {#if loading}<p class="forge-lede">Loading forge state…</p>{/if}
 
-  <div class="fleet-metrics">
+  <div class="forge-metrics">
     <article class="metric-card metric-primary">
       <span class="metric-label">Control center</span><strong>cratelab</strong><small>Local orchestration and run history</small>
     </article>
@@ -275,7 +275,7 @@
     </article>
   </div>
 
-  <section class="architecture-card" aria-label="Fleet architecture">
+  <section class="architecture-card" aria-label="Forge architecture">
     <div class="section-heading">
       <div><span class="section-kicker">HOW A RUN FLOWS</span><h2>One control plane, staged execution</h2></div>
       <span class="flow-caption">Secrets stay local · source context goes only to the chosen/eligible provider</span>
@@ -306,7 +306,7 @@
     <div class="policy-footnote">Routes are architecture defaults from the plan, not verified live availability. Provider selection and route execution are separate controls.</div>
   </section>
 
-  <div class="fleet-columns">
+  <div class="forge-columns">
     <section class="panel targets-panel">
       <div class="panel-heading"><div><span class="section-kicker">REPOSITORY</span><h2>{status?.target ?? "Selected source"}</h2></div><span class="count-chip">{status?.pilot.crates.length ?? 0} crates</span></div>
       <article class="target-card control-target">
@@ -319,7 +319,7 @@
         <h3>{status?.target ?? "Rust workspace"}</h3><p>{status?.target_path}. Repository selection is shared with the Ops Dashboard; source scans are read-only.</p>
         <div class="target-foot"><span>Workspace source</span><b class:status-ok={status?.target_available} class:status-bad={status && !status.target_available}>{status?.target_available ? `${status?.pilot.crates.length} crates available` : loading ? "Checking…" : "Path unavailable"}</b></div>
       </article>
-      <div class="scope-note"><strong>Read-only target</strong><span>Only the selected crate source enters a case. Local preparation writes reports under Fleet; it never edits this repository.</span></div>
+      <div class="scope-note"><strong>Read-only target</strong><span>Only the selected crate source enters a case. Local preparation writes reports under Forge; it never edits this repository.</span></div>
     </section>
 
     <section class="panel run-panel">
@@ -331,23 +331,23 @@
           <b class="case-repo">{status?.target ?? "—"}</b>
           <small>switch scope in the top header</small>
         </div>
-        <label class="case-field" for="fleet-crate">
+        <label class="case-field" for="forge-crate">
           <span class="field-label">Crate</span>
-          <select id="fleet-crate" bind:value={crateId} disabled={busy || liveBusy || loading}>
+          <select id="forge-crate" bind:value={crateId} disabled={busy || liveBusy || loading}>
             {#each status?.pilot.crates ?? [] as crate (crate.id)}<option value={crate.id}>{crate.package}</option>{/each}
           </select>
         </label>
-        <label class="case-field" for="fleet-task">
+        <label class="case-field" for="forge-task">
           <span class="field-label">Task</span>
-          <select id="fleet-task" bind:value={task}>
-            {#each fleetWorkflows as workflow (workflow.id)}
+          <select id="forge-task" bind:value={task}>
+            {#each forgeWorkflows as workflow (workflow.id)}
               <option value={workflow.id}>{workflow.group} · {workflow.label}</option>
             {/each}
           </select>
         </label>
-        <label class="case-field" for="fleet-provider">
+        <label class="case-field" for="forge-provider">
           <span class="field-label">Provider (rung)</span>
-          <select id="fleet-provider" value={status?.selected_provider ?? ""} onchange={(event) => event.currentTarget.value && selectProvider(event.currentTarget.value)} disabled={busy || loading}>
+          <select id="forge-provider" value={status?.selected_provider ?? ""} onchange={(event) => event.currentTarget.value && selectProvider(event.currentTarget.value)} disabled={busy || loading}>
             <option value="">No provider selected</option>
             {#each (status?.providers ?? []).filter((p) => ["gemini", "groq", "cloudflare", "nvidia", "openrouter", "zhipu", "colab-bonsai", "kaggle-bonsai"].includes(p.id)) as p (p.id)}
               <option value={p.id}>{p.name}{p.credential_ready ? " · credential present" : " · not configured"}</option>
@@ -356,9 +356,9 @@
           <small>always explicit · no silent fallback</small>
         </label>
         {#if selectedInference()?.available_models.length}
-          <label class="case-field" for="fleet-model">
+          <label class="case-field" for="forge-model">
             <span class="field-label">Model</span>
-            <select id="fleet-model" value={selectedInference()?.selected_model ?? ""} onchange={(event) => selectModel(event.currentTarget.value)} disabled={busy || loading}>
+            <select id="forge-model" value={selectedInference()?.selected_model ?? ""} onchange={(event) => selectModel(event.currentTarget.value)} disabled={busy || loading}>
               <option value="">Select a discovered model</option>
               {#each selectedInference()?.available_models ?? [] as model (model)}<option value={model}>{model}</option>{/each}
             </select>
@@ -392,8 +392,8 @@
         </div>
         {#if noteSaved}<small class="note-saved">✓ saved — included in the next case for this repository + workflow</small>{/if}
       </div>
-      <label class="field-label" for="fleet-rag-project">Signage docs context (optional)</label>
-      <select id="fleet-rag-project" bind:value={ragProjectId} disabled={liveBusy}>
+      <label class="field-label" for="forge-rag-project">Signage docs context (optional)</label>
+      <select id="forge-rag-project" bind:value={ragProjectId} disabled={liveBusy}>
         <option value="">No signage docs</option>
         <option value="simple-signage">Simple-Signage docs</option>
         <option value="companion-app">Companion-app docs</option>
@@ -437,7 +437,7 @@
                 <code class="report-path">{lastRun.report}</code>
               </div>
             {:else}
-              <p class="fleet-lede">No local evidence yet — run a dry run first.</p>
+              <p class="forge-lede">No local evidence yet — run a dry run first.</p>
             {/if}
           </div>
           <div class="evidence-pane">
@@ -445,12 +445,12 @@
             {#if liveAnswer}
               <div class="provider-answer"><div class="answer-heading"><strong>Analysis result · {task}</strong><span>Saved locally · review before any follow-up</span></div><pre>{liveAnswer}</pre></div>
             {:else}
-              <p class="fleet-lede">No provider result yet. Dry run first, then Run live with a probed rung.</p>
+              <p class="forge-lede">No provider result yet. Dry run first, then Run live with a probed rung.</p>
             {/if}
           </div>
         </div>
       {/if}
-      {#if liveError}<div class="fleet-alert" role="alert"><span>{liveError}</span><button class="alert-close" onclick={() => (liveError = "")} aria-label="Dismiss">×</button></div>{/if}
+      {#if liveError}<div class="forge-alert" role="alert"><span>{liveError}</span><button class="alert-close" onclick={() => (liveError = "")} aria-label="Dismiss">×</button></div>{/if}
     </section>
   </div>
 
@@ -500,7 +500,7 @@
 
   <section class="panel circleci-panel">
     <div class="panel-heading providers-heading">
-      <div><span class="section-kicker">RESEARCH & DOCS GATES</span><h2>CircleCI operations</h2><p>Read-only account, project, pipeline, and workflow status. Fleet does not trigger pipelines or change CircleCI/GitHub settings.</p></div>
+      <div><span class="section-kicker">RESEARCH & DOCS GATES</span><h2>CircleCI operations</h2><p>Read-only account, project, pipeline, and workflow status. Forge does not trigger pipelines or change CircleCI/GitHub settings.</p></div>
       <button class="ghost" onclick={() => (circleCiReview = true)} disabled={circleCiBusy || !provider("circleci")?.credential_ready}>{circleCiBusy ? "Loading…" : circleCi ? "Refresh CI status" : "Review status request"}</button>
     </div>
     {#if circleCi}
@@ -511,7 +511,7 @@
         <article><span>Last checked</span><strong>{time(circleCi.checked_at)}</strong></article>
       </div>
       {#if !circleCi.setup.project_slugs_configured}
-        <div class="ci-setup-note"><strong>Project list is empty.</strong><span>In Fleet Settings, set <code>CIRCLECI_PROJECT_SLUGS</code> to a comma-separated list such as <code>gh/Zakarialabib/tv-rs</code>.</span><a href="https://app.circleci.com/projects" target="_blank" rel="noreferrer">Connect a project in CircleCI ↗</a></div>
+        <div class="ci-setup-note"><strong>Project list is empty.</strong><span>In Forge Settings, set <code>CIRCLECI_PROJECT_SLUGS</code> to a comma-separated list such as <code>gh/Zakarialabib/tv-rs</code>.</span><a href="https://app.circleci.com/projects" target="_blank" rel="noreferrer">Connect a project in CircleCI ↗</a></div>
       {:else}
         <div class="ci-project-list">
           {#each circleCi.projects as project (project.slug)}
@@ -528,12 +528,12 @@
           {/each}
         </div>
       {/if}
-      <div class="ci-template-status"><span class="legend-dot" class:ready={circleCi.setup.template_present}></span><span>Fleet gate template {circleCi.setup.template_present ? "ready" : "missing"}: <code>{circleCi.setup.template_path}</code></span><span class="legend-dot" class:ready={circleCi.setup.target_config_present}></span><span>Target config {circleCi.setup.target_config_present ? "present" : "not installed"}: <code>{circleCi.setup.target_config_path}</code></span></div>
-      {#if !circleCi.setup.target_config_present}<p class="ci-setup-note"><strong>Setup next:</strong> connect the selected repository’s project in CircleCI, review the Fleet Rust gate template, then add it to that target through your normal Git review.</p>{/if}
+      <div class="ci-template-status"><span class="legend-dot" class:ready={circleCi.setup.template_present}></span><span>Forge gate template {circleCi.setup.template_present ? "ready" : "missing"}: <code>{circleCi.setup.template_path}</code></span><span class="legend-dot" class:ready={circleCi.setup.target_config_present}></span><span>Target config {circleCi.setup.target_config_present ? "present" : "not installed"}: <code>{circleCi.setup.target_config_path}</code></span></div>
+      {#if !circleCi.setup.target_config_present}<p class="ci-setup-note"><strong>Setup next:</strong> connect the selected repository’s project in CircleCI, review the Forge Rust gate template, then add it to that target through your normal Git review.</p>{/if}
     {:else}
       <div class="empty-history"><span class="empty-icon">CI</span><div><strong>CI status has not been loaded</strong><p>Configure a CircleCI token and project slug in Settings, then review the read-only request.</p></div></div>
     {/if}
-      {#if circleCiError}<div class="fleet-alert" role="alert"><span>{circleCiError}</span><button class="alert-close" onclick={() => (circleCiError = "")} aria-label="Dismiss">×</button></div>{/if}
+      {#if circleCiError}<div class="forge-alert" role="alert"><span>{circleCiError}</span><button class="alert-close" onclick={() => (circleCiError = "")} aria-label="Dismiss">×</button></div>{/if}
     <div class="provider-footnote"><strong>External action boundary.</strong> Loading sends the CircleCI token to CircleCI API v2 and reads up to five recent pipeline rows per configured project. It does not start, cancel, or retry jobs.</div>
   </section>
 
@@ -548,7 +548,7 @@
     {/if}
   </section>
 
-  <footer class="fleet-footer"><span>cratelab · fleet module</span><span>Inference requires per-run confirmation. RAG uploads and CI/GitHub writes remain off.</span></footer>
+  <footer class="forge-footer"><span>cratelab · forge module</span><span>Inference requires per-run confirmation. RAG uploads and CI/GitHub writes remain off.</span></footer>
 
   {#if probeTarget}
     <div class="modal-backdrop" role="presentation" onclick={(event) => event.target === event.currentTarget && !probeBusy && (probeTarget = null)}>
@@ -591,8 +591,8 @@
       <dialog class="confirm-modal" open aria-labelledby="circleci-review-title">
         <span class="modal-kicker">READ-ONLY CIRCLECI REQUEST</span>
         <h2 id="circleci-review-title">Load CircleCI operations status?</h2>
-        <p>Fleet will send the saved <strong>CIRCLECI_TOKEN</strong> to CircleCI API v2 and request your account, visible organizations, and recent pipeline/workflow status for the configured project slugs.</p>
-        <div class="modal-detail"><strong>Project slugs</strong><span>{circleCi?.projects.map((project) => project.slug).join(", ") || "Read from Fleet Settings when you continue"}</span></div>
+        <p>Forge will send the saved <strong>CIRCLECI_TOKEN</strong> to CircleCI API v2 and request your account, visible organizations, and recent pipeline/workflow status for the configured project slugs.</p>
+        <div class="modal-detail"><strong>Project slugs</strong><span>{circleCi?.projects.map((project) => project.slug).join(", ") || "Read from Forge Settings when you continue"}</span></div>
         <div class="modal-detail"><strong>Scope</strong><span>GET requests only · at most 12 projects · latest 5 pipeline summaries per project · no source upload, job trigger, cancellation, or settings changes.</span></div>
         <div class="modal-actions"><button class="ghost" onclick={() => (circleCiReview = false)} disabled={circleCiBusy}>Cancel</button><button class="primary" onclick={loadCircleCi} disabled={circleCiBusy}>{circleCiBusy ? "Reading CircleCI…" : "Send token and load status"}</button></div>
       </dialog>

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import FleetView from "./FleetView.svelte";
+  import ForgeView from "./ForgeView.svelte";
   import OpsDashboard from "./OpsDashboard.svelte";
 
   // Automation is one concern with two surfaces: the work orchestration
@@ -18,7 +18,7 @@
 </div>
 
 {#if active === "workflows"}
-  <FleetView />
+  <ForgeView />
 {:else}
   <OpsDashboard />
 {/if}

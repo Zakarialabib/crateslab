@@ -1,4 +1,4 @@
-export const fleetWorkflows = [
+export const forgeWorkflows = [
   { id: "research-summary", label: "Research", group: "Understand", local: "Inventory source and public API", live: "Map purpose, boundaries, related crates, and open research questions.", steps: ["Scope one crate", "Collect source evidence", "Research context", "Review claims", "Capture learning"] },
   { id: "rustdoc-audit", label: "Documentation", group: "Improve", local: "Find public API documentation candidates", live: "Identify missing or unclear rustdoc with exact source evidence.", steps: ["Scan public surface", "Check existing docs", "Draft doc recommendations", "Review evidence", "Capture learning"] },
   { id: "feature-study", label: "Feature study", group: "Plan", local: "Map API and implementation files", live: "Trace a feature across crates, contracts, tests, and user-facing behavior.", steps: ["State feature question", "Map code path", "Trace dependencies", "Identify acceptance evidence", "Capture learning"] },
@@ -24,4 +24,4 @@ export const fleetWorkflows = [
   },
 ] as const;
 
-export type FleetWorkflowId = (typeof fleetWorkflows)[number]["id"];
+export type ForgeWorkflowId = (typeof forgeWorkflows)[number]["id"];

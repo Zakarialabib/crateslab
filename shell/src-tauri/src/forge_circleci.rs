@@ -1,4 +1,4 @@
-//! Read-only CircleCI operations summary for the Fleet dashboard.
+//! Read-only CircleCI operations summary for the Forge dashboard.
 //!
 //! This module only issues CircleCI API GET requests. It never starts a
 //! pipeline, edits project settings, or writes repository files.
@@ -128,14 +128,19 @@ fn project_summary(agent: &ureq::Agent, token: &str, slug: &str) -> Value {
     })
 }
 
-pub fn dashboard(token: &str, configured_slugs: &str, fleet_dir: &Path) -> Result<Value, String> {
+pub fn dashboard(
+    token: &str,
+    configured_slugs: &str,
+    forge_dir: &Path,
+    template_path: &Path,
+) -> Result<Value, String> {
     let agent = ureq::AgentBuilder::new()
         .timeout(std::time::Duration::from_secs(12))
         .build();
     let me = get(&agent, token, "/me").map_err(|code| match code {
         0 => "Could not reach CircleCI. Check network access and try again.".to_string(),
         401 | 403 => {
-            "CircleCI rejected this token. Check its validity and project access in Fleet Settings."
+            "CircleCI rejected this token. Check its validity and project access in Forge Settings."
                 .to_string()
         }
         _ => format!("CircleCI account check failed (HTTP {code})."),
@@ -171,11 +176,10 @@ pub fn dashboard(token: &str, configured_slugs: &str, fleet_dir: &Path) -> Resul
         .collect();
     let connected_count = projects.iter().filter(|p| p["connected"] == true).count();
 
-    let template_path = fleet_dir.join("circleci/config.yml");
     let target_root = std::env::var_os("TV_RS_ROOT")
         .map(std::path::PathBuf::from)
         .or_else(|| {
-            std::fs::read_to_string(fleet_dir.join(".env"))
+            std::fs::read_to_string(forge_dir.join(".env"))
                 .ok()
                 .and_then(|raw| {
                     raw.lines().find_map(|line| {

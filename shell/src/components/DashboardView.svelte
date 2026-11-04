@@ -1,18 +1,18 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { api } from "../api";
-  import type { FleetDashboardData, FleetStatus } from "../types";
+  import type { ForgeDashboardData, ForgeStatus } from "../types";
 
   let { onnav }: { onnav?: (view: string) => void } = $props();
 
-  let data = $state<FleetDashboardData | null>(null);
-  let status = $state<FleetStatus | null>(null);
+  let data = $state<ForgeDashboardData | null>(null);
+  let status = $state<ForgeStatus | null>(null);
   let loading = $state(true);
   let err = $state("");
 
   onMount(async () => {
     try {
-      const [nextData, nextStatus] = await Promise.all([api.fleetDashboard(), api.fleetStatus()]);
+      const [nextData, nextStatus] = await Promise.all([api.forgeDashboard(), api.forgeStatus()]);
       data = nextData;
       status = nextStatus;
     } catch (e) { err = String(e); }
@@ -57,20 +57,20 @@
 </script>
 
 <section class="ops-dashboard">
-  <header class="fleet-header">
+  <header class="forge-header">
     <div>
       <div class="eyebrow"><span class="eyebrow-dot"></span> CRATELAB · PROJECT STATE &amp; EVOLUTION</div>
       <h1>Dashboard</h1>
-      <p class="fleet-lede">Is the fleet improving the {data?.target ?? "selected"} crates, and what needs a human? Every number below links to the surface that owns it.</p>
+      <p class="forge-lede">Is the forge improving the {data?.target ?? "selected"} crates, and what needs a human? Every number below links to the surface that owns it.</p>
     </div>
     <button class="ghost" onclick={() => onnav?.("reports")}>Open reports</button>
   </header>
 
-  {#if err}<div class="fleet-alert" role="alert">{err}</div>{/if}
-  {#if loading}<p class="fleet-lede">Loading project state…</p>{/if}
+  {#if err}<div class="forge-alert" role="alert">{err}</div>{/if}
+  {#if loading}<p class="forge-lede">Loading project state…</p>{/if}
 
   {#if data}
-    <div class="fleet-metrics">
+    <div class="forge-metrics">
       <button class="target-card metric-link" onclick={() => onnav?.("reports")}>
         <span class="metric-label">Evidence runs</span><strong>{data.runs.total}</strong>
         <small>{Object.keys(data.runs.by_repository).length} repositor{Object.keys(data.runs.by_repository).length === 1 ? "y" : "ies"} touched · open Reports</small>
@@ -79,11 +79,11 @@
         <span class="metric-label">Reports produced</span><strong>{data.reports.count}</strong>
         <small>latest: {data.reports.latest[0]?.name ?? "—"}</small>
       </button>
-      <button class="target-card metric-link" onclick={() => onnav?.("fleet-settings")}>
+      <button class="target-card metric-link" onclick={() => onnav?.("forge-settings")}>
         <span class="metric-label">Providers ready</span><strong>{probed}/{status?.providers.length ?? data.providers.total} probed</strong>
         <small>{data.providers.ready}/{data.providers.total} configured · open Providers</small>
       </button>
-      <button class="target-card metric-link" onclick={() => onnav?.("fleet")}>
+      <button class="target-card metric-link" onclick={() => onnav?.("forge")}>
         <span class="metric-label">Target repository</span><strong>{data.target}</strong>
         <small>{data.crates.length} crates in the catalog · open Workflows</small>
       </button>
@@ -94,7 +94,7 @@
         <span class="section-kicker">BUDGETS TODAY · FREE TIERS</span>
         <h3>What is left today</h3>
         {#if budgets.length === 0}
-          <p class="fleet-lede">No usage recorded yet. Local caps come from the engine's ledger.</p>
+          <p class="forge-lede">No usage recorded yet. Local caps come from the engine's ledger.</p>
         {:else}
           <div class="evo-bars">
             {#each budgets as row (row.id)}
@@ -113,7 +113,7 @@
         <span class="section-kicker">EVOLUTION · RUNS PER DAY (UTC)</span>
         <h3>Evidence prepared over time</h3>
         {#if days.length === 0}
-          <p class="fleet-lede">No runs yet — start with a local case packet in Workflows.</p>
+          <p class="forge-lede">No runs yet — start with a local case packet in Workflows.</p>
         {:else}
           <div class="evo-bars">
             {#each days as [day, count] (day)}
@@ -129,7 +129,7 @@
         <span class="section-kicker">WORKLOAD MIX (TASK)</span>
         <h3>Where the effort goes</h3>
         {#if tasks.length === 0}
-          <p class="fleet-lede">No workflow runs recorded yet.</p>
+          <p class="forge-lede">No workflow runs recorded yet.</p>
         {:else}
           <div class="evo-bars">
             {#each tasks as [task, count] (task)}
@@ -146,7 +146,7 @@
         {#each data.coverage as row (row.workspace)}
           <div class="evo-row"><span class="evo-day">{row.workspace}</span><div class="evo-bar-track"><div class="evo-bar" style="width:{Math.round(row.percent)}%"></div></div><span class="evo-count">{row.percent}%</span></div>
         {:else}
-          <p class="fleet-lede">No lab coverage yet.</p>
+          <p class="forge-lede">No lab coverage yet.</p>
         {/each}
         <small class="button-caption">Coverage moves when scenarios exercise more of each manifest — Lab · Scenarios.</small>
       </article>
@@ -156,7 +156,7 @@
       <span class="section-kicker">RECENT CASES</span>
       <h3>Last cases, with provenance</h3>
       {#if recentCases.length === 0}
-        <p class="fleet-lede">Nothing yet. Prepare a case packet to see it here.</p>
+        <p class="forge-lede">Nothing yet. Prepare a case packet to see it here.</p>
       {:else}
         <ul class="evo-recent">
           {#each recentCases as run (run.at)}
@@ -174,13 +174,13 @@
       <h3>What the lab improves</h3>
       <div class="crate-chips">
         {#each data.crates as crate (crate.id)}
-          <button class="crate-chip" onclick={() => onnav?.("fleet")}>{crate.package}</button>
+          <button class="crate-chip" onclick={() => onnav?.("forge")}>{crate.package}</button>
         {/each}
       </div>
       <div class="ops-button-row" style="margin-top:12px">
-        <button class="ghost" onclick={() => onnav?.("fleet")}>Run a workflow</button>
+        <button class="ghost" onclick={() => onnav?.("forge")}>Run a workflow</button>
         <button class="ghost" onclick={() => onnav?.("reports")}>Read the reports</button>
-        <button class="ghost" onclick={() => onnav?.("fleet-settings")}>Check providers</button>
+        <button class="ghost" onclick={() => onnav?.("forge-settings")}>Check providers</button>
       </div>
     </article>
   {/if}

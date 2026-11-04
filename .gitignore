@@ -13,21 +13,25 @@ node_modules
 shell/src-tauri/target
 
 /.webview2
-fleet/.env
-fleet/state/
-fleet/reports/
-fleet/data/
-fleet/target/
-fleet/.venv/
-fleet/**/__pycache__/
-fleet/**/*.pyc
-fleet/.env.example
-fleet/.modal-config
-fleet/.modal-home/
-fleet/.modal-secret-*.env
-fleet/.kaggle-venv/
-fleet/kaggle/crate-intelligence/kernel-metadata.json
-fleet/.env-draft
+forge/.env
+forge/state/
+forge/reports/
+forge/data/
+forge/target/
+forge/.venv/
+forge/**/__pycache__/
+forge/**/*.pyc
+forge/.env.example
+forge/.modal-config
+forge/.modal-home/
+forge/.modal-secret-*.env
+forge/.kaggle-venv/
+forge/.env-draft
+
+# engine-crate assets: generated at run time, never committed
+crates/forge-sidecar/remotes/kaggle/crate-intelligence/kernel-metadata.json
+crates/forge-sidecar/**/__pycache__/
+crates/forge-sidecar/**/*.pyc
 
 # stray Windows NUL artefacts (recreated by some tools)
 nul
