@@ -1,0 +1,207 @@
+# cratelab forge — the single source of truth for evolution workflows.
+#
+# Authored, not generated. The Tauri/Svelte shell renders this file; the
+# forge-core pipeline engine executes it; the forge-sidecar serves it over
+# JSON-RPC. Editing a workflow is editing this file — never a frontend.
+#
+# Each workflow walks the same seven-stage spine, in order:
+#   study -> knowledge -> retrieve -> prompt -> tools -> pipeline -> artifact
+#
+# domain: intern (a cratelab crate) | extern (a public workspace)
+#         | ops (operations surfaces) | rag (the retrieval plane)
+# gate:   research -> propose -> validate (a refusal is data, never a failure)
+#
+# Paths are environment-resolved or repo-relative. Never commit an absolute
+# user path, a token, or a private-repo name into this registry.
+
+# ---------------------------------------------------------------------------
+# intern — the bench evolves the bench: a cratelab crate under test.
+# ---------------------------------------------------------------------------
+[[workflows]]
+id = "cratelab-intern-evolution"
+domain = "intern"
+title = "Evolve a cratelab crate"
+target = "lab-manifest"
+tools = ["cargo", "rustdoc", "coverage-ledger", "clippy"]
+
+[[workflows.stages]]
+id = "study"
+kind = "study"
+title = "Study crate sources and research notes"
+gate = "research"
+
+[[workflows.stages]]
+id = "knowledge"
+kind = "knowledge"
+title = "Build the internal crate-intelligence index"
+
+[[workflows.stages]]
+id = "retrieve"
+kind = "retrieve"
+title = "Retrieve a grounded evidence packet"
+
+[[workflows.stages]]
+id = "prompt"
+kind = "prompt"
+title = "Render the crate-evolution research prompt"
+
+[[workflows.stages]]
+id = "tools"
+kind = "tools"
+title = "Arm the agent with cargo/rustdoc/coverage tools"
+gate = "propose"
+
+[[workflows.stages]]
+id = "pipeline"
+kind = "pipeline"
+title = "Run the gated step pipeline"
+
+[[workflows.stages]]
+id = "artifact"
+kind = "artifact"
+title = "Emit a feature, fix or doc proposal"
+gate = "validate"
+
+# ---------------------------------------------------------------------------
+# extern — a public Rust workspace (tv-rs, cctv-rs, ...) enters the pipeline.
+# ---------------------------------------------------------------------------
+[[workflows]]
+id = "extern-workspace-evolution"
+domain = "extern"
+title = "Evolve a public Rust workspace"
+target = "tv-rs"
+tools = ["cargo", "rustdoc", "git", "coverage-ledger"]
+
+[[workflows.stages]]
+id = "study"
+kind = "study"
+title = "Study the workspace and its docs sources"
+gate = "research"
+
+[[workflows.stages]]
+id = "knowledge"
+kind = "knowledge"
+title = "Build a provenance-rich corpus for the target"
+
+[[workflows.stages]]
+id = "retrieve"
+kind = "retrieve"
+title = "Retrieve a grounded evidence packet"
+
+[[workflows.stages]]
+id = "prompt"
+kind = "prompt"
+title = "Render the crate-evolution research prompt"
+
+[[workflows.stages]]
+id = "tools"
+kind = "tools"
+title = "Arm the agent with workspace tools"
+gate = "propose"
+
+[[workflows.stages]]
+id = "pipeline"
+kind = "pipeline"
+title = "Run the gated step pipeline"
+
+[[workflows.stages]]
+id = "artifact"
+kind = "artifact"
+title = "Emit a feature, fix or doc proposal"
+gate = "validate"
+
+# ---------------------------------------------------------------------------
+# ops — environment, credential and CI hygiene across the factory.
+# ---------------------------------------------------------------------------
+[[workflows]]
+id = "ops-readiness"
+domain = "ops"
+title = "Operations readiness review"
+target = "cratelab-ops"
+tools = ["cargo", "circleci", "env-audit"]
+
+[[workflows.stages]]
+id = "study"
+kind = "study"
+title = "Study provider, quota and CI surfaces"
+gate = "research"
+
+[[workflows.stages]]
+id = "knowledge"
+kind = "knowledge"
+title = "Build the operations knowledge base"
+
+[[workflows.stages]]
+id = "retrieve"
+kind = "retrieve"
+title = "Retrieve a grounded evidence packet"
+
+[[workflows.stages]]
+id = "prompt"
+kind = "prompt"
+title = "Render the operations review prompt"
+
+[[workflows.stages]]
+id = "tools"
+kind = "tools"
+title = "Arm the agent with CI and env-audit tools"
+gate = "propose"
+
+[[workflows.stages]]
+id = "pipeline"
+kind = "pipeline"
+title = "Run the gated step pipeline"
+
+[[workflows.stages]]
+id = "artifact"
+kind = "artifact"
+title = "Emit an operations remediation proposal"
+gate = "validate"
+
+# ---------------------------------------------------------------------------
+# rag — the retrieval plane that feeds every other domain.
+# ---------------------------------------------------------------------------
+[[workflows]]
+id = "rag-intelligence"
+domain = "rag"
+title = "Retrieval intelligence and evaluation"
+target = "cratelab-crates"
+tools = ["corpus-builder", "bm25", "kaggle-eval"]
+
+[[workflows.stages]]
+id = "study"
+kind = "study"
+title = "Study the indexed source roots"
+gate = "research"
+
+[[workflows.stages]]
+id = "knowledge"
+kind = "knowledge"
+title = "Build and validate the knowledge base"
+
+[[workflows.stages]]
+id = "retrieve"
+kind = "retrieve"
+title = "Retrieve and score evidence passages"
+
+[[workflows.stages]]
+id = "prompt"
+kind = "prompt"
+title = "Render the evaluation prompt"
+
+[[workflows.stages]]
+id = "tools"
+kind = "tools"
+title = "Arm the agent with retrieval and evaluation tools"
+gate = "propose"
+
+[[workflows.stages]]
+id = "pipeline"
+kind = "pipeline"
+title = "Run the gated evaluation pipeline"
+
+[[workflows.stages]]
+id = "artifact"
+kind = "artifact"
+title = "Emit a retrieval evaluation result"
+gate = "validate"

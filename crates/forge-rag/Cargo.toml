@@ -1,0 +1,15 @@
+[package]
+name = "forge-rag"
+description = "The forge retrieval plane: deterministic corpus ingestion, a provenance-rich BM25 index, evidence-packet retrieval, and scripted prompt rendering — the knowledge base that grounds every other forge domain."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+lab-errors = { workspace = true }
+forge-core = { workspace = true }

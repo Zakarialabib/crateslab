@@ -1,0 +1,24 @@
+[package]
+name = "forge-sidecar"
+description = "The forge sidecar: a stdio JSON-RPC binary that serves the workflow registry, retrieval and pipeline to any host (Tauri shell, CLI, editor) and bridges to remote (Modal / Kaggle) compute from one place."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[lib]
+name = "forge_sidecar"
+path = "src/lib.rs"
+
+[[bin]]
+name = "forge-sidecar"
+path = "src/main.rs"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+lab-errors = { workspace = true }
+forge-core = { workspace = true }
+forge-rag = { workspace = true }

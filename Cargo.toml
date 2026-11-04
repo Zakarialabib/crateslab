@@ -9,6 +9,9 @@ members = [
     "crates/lab-conformance",
     "crates/lab-engine",
     "crates/lab-generate",
+    "crates/forge-core",
+    "crates/forge-rag",
+    "crates/forge-sidecar",
 ]
 # NOTE: shell/src-tauri is a standalone Tauri v2 application workspace.
 # It is intentionally NOT a member here so that `cargo test --workspace`
@@ -39,3 +42,7 @@ lab-mocks = { path = "crates/lab-mocks" }
 lab-scenarios = { path = "crates/lab-scenarios" }
 lab-conformance = { path = "crates/lab-conformance" }
 lab-engine = { path = "crates/lab-engine" }
+
+forge-core = { path = "crates/forge-core" }
+forge-rag = { path = "crates/forge-rag" }
+forge-sidecar = { path = "crates/forge-sidecar" }
