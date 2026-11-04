@@ -39,6 +39,7 @@ The shell exposes the forge to the UI as a small set of focused commands:
 |---|---|
 | `forge_get_settings` / `forge_save_settings` | Read/write the keyed settings snapshot; `forge_save_settings` rejects any key not in the allow-list. |
 | `forge_status` / `forge_dashboard` | Status + dashboard: selected repository, targets, providers, runs, usage, policy flags, daily caps. |
+| `forge_catalog` | The engine's authored registries — the workflow registry (`forge.workflows.toml`) and the task catalog (`forge.tasks.toml`) — served straight from `forge-core`. |
 | `forge_select_repository` / `forge_select_provider` / `forge_select_model` | Persist the current selection into `forge/state/`. |
 | `forge_probe_provider` | Probe a rung's credential and model list (e.g. a Bonsai session's `/models`). |
 | `forge_dry_run` | Build a local case packet and report — no provider call. |

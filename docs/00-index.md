@@ -32,7 +32,7 @@ The bench produces evidence; the forge reads that evidence and produces reviewab
 | 06 | [Internal crate architecture map](06-crate-intelligence.md) | reference | The verified dependency + responsibility map of cratelab's own crates. |
 | 07 | [The forge](07-the-forge.md) | reference | What the forge is: domains, the factory model, proposer/disposer separation, governance. |
 | 08 | [Forge SDK and sidecar](08-forge-sdk-and-sidecar.md) | live | The `forge-core` / `forge-rag` / `forge-sidecar` crates and the stdio JSON-RPC surface. |
-| 09 | [The workflow model](09-the-workflow-model.md) | reference | The seven-stage spine, the three gates, and the embedded workflow registry. |
+| 09 | [The workflow model](09-the-workflow-model.md) | reference | The seven-stage spine, the three gates, and the two embedded registries (workflows + tasks). |
 | 10 | [Knowledge base and retrieval](10-knowledge-base-and-retrieval.md) | reference | Ingest, the BM25 index, evidence packets, and scripted prompt rendering. |
 | 11 | [Providers and capacity](11-providers-and-capacity.md) | reference | Provider ports, free-tier rungs, and which models fit which free hardware. |
 | 12 | [Operations](12-operations.md) | live | Day-to-day running: env, credentials, MOCK vs LIVE, quota safety, field test. |

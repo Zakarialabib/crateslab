@@ -27,7 +27,7 @@ flowchart TB
   end
 
   subgraph FORGE["The forge — the agentic evolution engine"]
-    REG["one registry\nforge.workflows.toml"]
+    REG["authored registries\nforge.workflows.toml · forge.tasks.toml"]
     CR["forge-core · forge-rag · forge-sidecar"]
     HOME["runtime home\nforge/ (state · reports · data)"]
     CR --> REG
@@ -163,7 +163,7 @@ These hold across every crate, the shell, the bench and the forge. They are the 
 | **One error vocabulary** | Everything branches on `LabError` + `Remedy`, nothing else. |
 | **The UI is a renderer** | Adding a crate adds zero frontend code; the UI is derived from the manifest. |
 | **Generated proposes, authored disposes** | Machine output is advisory; a human commits the semantic layer. |
-| **One workflow registry** | The forge has one authored `forge.workflows.toml`, embedded at build time; the UI renders it, the engine executes it and the sidecar serves it. Nothing re-implements a workflow in a frontend. |
+| **One workflow registry, one task catalog** | The forge has one authored `forge.workflows.toml` and one authored `forge.tasks.toml`, both embedded at build time; the UI renders them (through `forge_catalog`), the engine executes them and the sidecar serves them. Nothing re-implements a workflow or a task in a frontend. |
 | **One ordered spine** | Every forge workflow walks the same seven stages in order — study → knowledge → retrieve → prompt → tools → pipeline → artifact — validated against `StageKind::order` at load. |
 
 ## 6. The shell in the system
@@ -180,7 +180,7 @@ The forge is a **proposer** layered over the bench's evidence, and the renamed s
 - `forbidden_paths` — the paths it may never modify (`Cargo.toml`, `Cargo.lock`, `.github/**`, `.circleci/**`).
 - `execution.provider_calls` / `network` are `true`, but every provider call requires an explicit preview and confirmation, gates on a clean evidence packet, and fails over only along an explicit route — never silently. Credentials live in the ignored runtime home `forge/.env` and are referenced by name only.
 
-The forge's one source of truth is the authored `crates/forge-core/forge.workflows.toml` (embedded at build time). It carries four workflows across the `intern` / `extern` / `ops` / `rag` domains; every one walks the same seven-stage spine and the three gates **research → propose → validate**:
+The forge's authored sources are `crates/forge-core/forge.workflows.toml` (embedded at build time) and its sibling `forge.tasks.toml`. The workflow registry carries four workflows across the `intern` / `extern` / `ops` / `rag` domains; every one walks the same seven-stage spine and the three gates **research → propose → validate**:
 
 ```mermaid
 flowchart LR

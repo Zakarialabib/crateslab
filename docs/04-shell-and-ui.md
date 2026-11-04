@@ -110,6 +110,7 @@ Every function below is registered in `run()`'s `invoke_handler` (`tauri::genera
 | Command | What it does |
 |---|---|
 | `forge_status` | The readiness/summary object: providers, pilot crates, daily caps, `safe_mode`, policy, runs. |
+| `forge_catalog` | The engine's authored registries — the workflow registry and the task catalog — served straight from `forge-core` (`embedded()` + `embedded_tasks()`). |
 | `forge_select_repository` | Switches the active scope repository (shared by every forge view). |
 | `forge_select_provider` | Sets the active rung (explicit; no silent fallback). |
 | `forge_select_model` | Sets the model on a rung (from its last probe's discovered IDs). |

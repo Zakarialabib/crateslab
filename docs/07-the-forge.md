@@ -8,7 +8,7 @@ The forge is cratelab's unified agentic crate-evolution subsystem: one manifest-
 
 ## 1. What the forge is
 
-The forge is the renamed, unified agentic crate-evolution subsystem. It replaces the former `fleet/` control plane — a scatter of one-off Python scripts, loose markdown prompts and a config file sitting *outside* the crate graph — with **three typed engine crates** plus **one authored registry**:
+The forge is the renamed, unified agentic crate-evolution subsystem. It replaces the former `fleet/` control plane — a scatter of one-off Python scripts, loose markdown prompts and a config file sitting *outside* the crate graph — with **three typed engine crates** plus **authored registries** (a workflow registry and a task catalog):
 
 | Crate | Role | Docs |
 |---|---|---|
@@ -25,9 +25,9 @@ The engine assets are read-only and live *inside* the crates; the mutable runtim
 
 ## 2. Why it replaces the fleet
 
-The old fleet worked, but it was **scattered**: the same workflow was re-described in a frontend table, a set of Python scripts, a config file and several markdown specs that drifted apart. The forge collapses all of that into **one source of truth**:
+The old fleet worked, but it was **scattered**: the same workflow was re-described in a frontend table, a set of Python scripts, a config file and several markdown specs that drifted apart. The forge collapses all of that into **authored sources of truth**:
 
-- **One authored registry** (`crates/forge-core/forge.workflows.toml`) declares every workflow, its domain, its target, its tools and its ordered stages. The Svelte UI *renders* it, the `forge-core` engine *executes* it, and the `forge-sidecar` *serves* it over JSON-RPC. Nothing re-implements it.
+- **Two authored registries in the engine.** `crates/forge-core/forge.workflows.toml` declares every workflow, its domain, its target, its tools and its ordered stages; the sibling `forge.tasks.toml` declares every task and its scope. The Svelte UI *renders* both (through the `forge_catalog` command), the `forge-core` engine *executes* them, and the `forge-sidecar` *serves* the registry over JSON-RPC. Nothing re-implements either in a frontend.
 - **Engine assets travel with the code.** Credential guides, the CircleCI gate template, the Modal ASGI apps, the Kaggle kernel and the corpus builder all ship inside `crates/forge-*` and are addressed from the workspace root by a single `engine_asset()` helper instead of being copied into a runtime tree.
 - **One error vocabulary.** Every forge failure classifies into the lab's `LabError` taxonomy (`kind` / `remedy` / `severity` / `exit_code`), so the UI, the coverage ledger and the CLI keep branching on the same small set of kinds.
 
@@ -38,7 +38,7 @@ The old fleet worked, but it was **scattered**: the same workflow was re-describ
 | `fleet/scripts/build_rag_index.py` | `crates/forge-sidecar/scripts/build_rag_index.py` + the typed `forge-rag` crate |
 | `fleet/prompts/crate-evolution-research.md` | `crates/forge-rag/prompts/crate-evolution-research.md` (embedded via `include_str!`) |
 | `fleet/` runtime + shell help | `forge/` runtime home + the `crate::`-typed engine crates |
-| ad-hoc workflow tables in the UI | one embedded `forge.workflows.toml` |
+| ad-hoc workflow + task tables in the UI | one embedded `forge.workflows.toml` + `forge.tasks.toml` |
 
 ## 3. Proposer / disposer separation
 

@@ -1,6 +1,6 @@
 # 09 · The workflow model
 
-The forge workflow model: the authored registry and its TOML schema, the `StageKind` / `Gate` vocabulary, the deterministic pipeline engine and its rule sets, the artifacts and evidence it emits, and the four workflows that ship today.
+The forge workflow model: the authored registry and its TOML schema, the `StageKind` / `Gate` vocabulary, the deterministic pipeline engine and its rule sets, the artifacts and evidence it emits, and the four workflows and the task catalog that ship today.
 
 > **cratelab docs** · SPDX `MIT` · security: this file must never contain credentials, tokens, private-repo content, or absolute user paths.
 
@@ -108,8 +108,9 @@ flowchart TD
 ```
 
 - `trait RuleSet { fn evaluate(&self, stage: &Stage, prior: &[StageRun]) -> RuleVerdict }` — rules **must be deterministic**: they may read `prior` runs but must not touch the clock, the filesystem or the network.
-- `AllowAll` is the default rule set: it clears every authored gate. Real rules arrive with the scripted-prompt layer (e.g. "refuse to propose when the evidence packet is empty").
-- `Pipeline::new(workflow).run()` uses `AllowAll`; `run_with_rules(rules)` consults `rules` at every gated stage.
+- `GateRules` is the forge's real rule set: a pure function of the stage, the stages already run and the number of grounded evidence items. Three rules, one per gate — **Research** refuses `no-evidence` when nothing was retrieved; **Propose** refuses `no-evidence` unless a research gate cleared and the packet is non-empty; **Validate** refuses `unproposed-artifact` unless a propose gate cleared.
+- `Pipeline::new(workflow).run(evidence)` runs gated on that evidence count (`GateRules`); `run_with_rules(rules)` consults any `RuleSet` at every gated stage.
+- `AllowAll` clears every gate and is used **only** by `dry_run()` — a structural walk for validation and UI rendering that performs no evidence check and can never refuse.
 
 `StageRun` records the stage id, its `kind`, the `gate` consulted (if any), the `verdict`, and deterministic `notes`. `PipelineOutcome { workflow, runs, artifacts, halted }` exposes:
 
@@ -140,11 +141,22 @@ The embedded registry declares four workflows, one per domain. Each walks all se
 | `ops-readiness` | `ops` | `cratelab-ops` | Study provider, quota and CI surfaces | Arm the agent with CI and env-audit tools | Emit an operations remediation proposal | `cargo`, `circleci`, `env-audit` |
 | `rag-intelligence` | `rag` | `cratelab-crates` | Study the indexed source roots | Arm the agent with retrieval and evaluation tools | Emit a retrieval evaluation result | `corpus-builder`, `bm25`, `kaggle-eval` |
 
-The gated stages are consistent across all four: `study` carries the `research` gate, `tools` carries the `propose` gate, and `artifact` carries the `validate` gate. The four workflows are the pipelines; the shell additionally offers a task catalog (research, documentation, feature study, bug investigation, debug plan, issue triage, knowledge synthesis, cross-language research) that selects the task a run performs — see [12-operations](12-operations.md) and [04-shell-and-ui](04-shell-and-ui.md).
+The gated stages are consistent across all four: `study` carries the `research` gate, `tools` carries the `propose` gate, and `artifact` carries the `validate` gate. The four workflows say *how* a run proceeds; the **task catalog** (§8) says *what* it asks — a second authored registry the engine owns and serves to the shell.
+
+## 8 · The task catalog
+
+A workflow says *how* a run proceeds; a **task** says *what* it asks about. Tasks are a second authored registry — `crates/forge-core/forge.tasks.toml` — embedded at build time (`EMBEDDED_TASKS`) and parsed by `TaskCatalog::from_toml`. Ten tasks ship across two scopes:
+
+| Scope | Meaning | Tasks |
+|---|---|---|
+| `pilot` | The tasks the shell's Workbench offers a run. | `research-summary`, `feature-study`, `issue-triage`, `rustdoc-audit`, `bug-investigation`, `debug-plan`, `knowledge-synthesis`, `cross-language-research` |
+| `crate-intelligence` | The tasks the crate-knowledge route accepts. | `research-summary`, `rustdoc-audit`, `conformance-review`, `architecture-map` |
+
+Each `Task { id, label, group, local, live, steps, refs, scopes }` carries the offline half (`local`), the provider half (`live`) and the step rail the shell renders; `validate` rejects duplicate ids and any task missing a label, group, step or scope. The shell keeps no hand-written task table: the `forge_catalog` Tauri command serves both the workflows (`forge_core::embedded()`) and the tasks (`embedded_tasks()`), and the shell's command guards validate a requested task against the served ids — so the task axis and the workflow axis share one source and cannot drift ([04-shell-and-ui](04-shell-and-ui.md), [12-operations](12-operations.md)).
 
 ## Consolidation notes
 
 - **Renamed and rewrote** the old `10-fleet-workflows.md` as `09-the-workflow-model.md`: it is now a specification of the registry + engine rather than a catalogue of fleet work cycles.
-- **Grounded the model in `forge-core`**: the `Workflow`/`WorkflowRegistry` schema, the three validation rules, the `StageKind`/`Gate` tables, the `Refusal` default severity, the `Pipeline`/`RuleSet`/`AllowAll` engine and the `Artifact`/`EvidenceRef` shapes are all read from the code.
-- **Kept the four-workflow table** grounded in `forge.workflows.toml`, and **distinguished** the registry pipelines from the shell task catalog so the two are not conflated.
+- **Grounded the model in `forge-core`**: the `Workflow`/`WorkflowRegistry` schema, the three validation rules, the `StageKind`/`Gate` tables, the `Refusal` default severity, the `GateRules`/`AllowAll` engine and the `Artifact`/`EvidenceRef` shapes are all read from the code.
+- **Kept the four-workflow table** grounded in `forge.workflows.toml`, and **added §8** for the engine-authored task catalog (`forge.tasks.toml` + `task.rs`) served to the shell through `forge_catalog` — the task axis and the workflow axis now share one source instead of a hand-written frontend table.
 - **Dropped** the old fleet's cross-language research rail, per-template local/live table and the design-only execution schedule (they described a different, non-registry model); the forge's forward plan now lives in [13-roadmap](13-roadmap.md).

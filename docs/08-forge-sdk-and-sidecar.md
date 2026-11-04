@@ -43,21 +43,23 @@ flowchart LR
 ```text
 pub use artifact::{Artifact, ArtifactKind, EvidenceRef};
 pub use error::{ForgeError, ForgeResult};
-pub use pipeline::{Pipeline, PipelineOutcome, RuleSet, StageRun};
+pub use pipeline::{AllowAll, GateRules, Pipeline, PipelineOutcome, RuleSet, StageRun};
 pub use provider::{MockProvider, Provider, ProviderPort, ProviderRequest, ProviderResponse};
 pub use stage::{Gate, Refusal, RuleVerdict, Stage, StageKind};
 pub use target::{Domain, Target};
+pub use task::{embedded_tasks, Task, TaskCatalog, TaskScope, EMBEDDED_TASKS};
 pub use workflow::{embedded, Workflow, WorkflowRegistry, EMBEDDED_REGISTRY};
 ```
 
 | Module | Key items | What it is |
 |---|---|---|
-| `workflow` | `Workflow { id, domain, title, target, tools, stages }`; `WorkflowRegistry` with `from_toml` / `get` / `by_domain` / `ids` / `validate`; `EMBEDDED_REGISTRY` (`include_str!`) and `embedded()`. | The single source of truth: one authored TOML, parsed and validated. |
+| `workflow` | `Workflow { id, domain, title, target, tools, stages }`; `WorkflowRegistry` with `from_toml` / `get` / `by_domain` / `ids` / `validate`; `EMBEDDED_REGISTRY` (`include_str!`) and `embedded()`. | The single source of truth for *how* a run proceeds: one authored TOML, parsed and validated. |
+| `task` | `Task { id, label, group, local, live, steps, refs, scopes }`; `TaskScope {Pilot, CrateIntelligence}`; `TaskCatalog` with `from_toml` / `get` / `ids` / `in_scope` / `ids_in_scope` / `validate`; `EMBEDDED_TASKS` (`include_str!`) and `embedded_tasks()`. | The single source of truth for *what* a run asks: one authored TOML across two scopes, parsed and validated. |
 | `stage` | `StageKind` (7 variants, `ALL`, `as_str`, `order`, `default_gate`); `Gate {Research, Propose, Validate}`; `Refusal { code, message, severity }` defaulting to `Info`; `RuleVerdict {Pass, Refuse(Refusal)}`; `Stage { id, kind, title, gate }`. | The ordered spine and its decision gates. |
 | `target` | `Domain {Intern, Extern, Ops, Rag}` (`ALL`, `as_str`); `Target { id, root, crate_glob, domain }` (`crate_glob` defaults to `crates/*`). | *What* the forge evolves and *which plane* it lives on. |
 | `artifact` | `ArtifactKind {Feature, Fix, Docs, Knowledge, Evaluation}`; `EvidenceRef { source, path, start_line, revision }`; `Artifact { kind, target, title, summary, evidence, steps }`; `Artifact::draft`. | The reviewable proposal a completed run emits. |
 | `provider` | `Provider { id, model, present }`; `ProviderRequest { provider, model, prompt, evidence }`; `Usage`; `ProviderResponse`; `trait ProviderPort { name, complete }`; `MockProvider`. | The one place the forge crosses the network boundary — and it does not, until a port is attached. |
-| `pipeline` | `StageRun`; `PipelineOutcome { workflow, runs, artifacts, halted }` with `refused()` / `refusals()` / `exit_code()`; `trait RuleSet { evaluate }`; `AllowAll`; `Pipeline::new` / `run` / `run_with_rules`. | The deterministic engine that drives a workflow's stages. |
+| `pipeline` | `StageRun`; `PipelineOutcome { workflow, runs, artifacts, halted }` with `refused()` / `refusals()` / `exit_code()`; `trait RuleSet { evaluate }`; `GateRules` (`no-evidence` / `unproposed-artifact`) and `AllowAll`; `Pipeline::new` / `run(evidence)` / `dry_run` / `run_with_rules`. | The deterministic engine that drives a workflow's stages; `run` gates on grounded evidence, `dry_run` is a structural walk. |
 | `error` | `ForgeError {Lab, Workflow, Pipeline, Retrieval, Remote}` with `kind()` / `remedy()` / `severity()` / `exit_code()`; `ForgeResult<T>`. | One error vocabulary, mapped onto `LabError`. |
 
 **Invariants carried by the SDK.** Manifest-driven; refusals are data (`Severity::Info` ⇒ exit `0`, never a panic); zero-panic; a deterministic core (no RNG, no network); and the single `ForgeError` vocabulary. The full stage/pipeline model is in [09-the-workflow-model](09-the-workflow-model.md).
@@ -115,9 +117,9 @@ Some forge work (embedding, large-scale evaluation) runs better off-box. The sid
 
 `RemoteKind` is `Local` (in-process, the default), `ModalAsgi` (a Modal-hosted ASGI app) or `KaggleKernel` (a Kaggle notebook kernel). These are descriptors only: no network is touched until a caller attaches a bridge and confirms the request.
 
-## 5. One source of truth: `forge.workflows.toml`
+## 5. The authored registries: workflows and tasks
 
-`crates/forge-core/forge.workflows.toml` is the single authored registry. It is not generated: editing a workflow is editing this file, never a frontend. It is embedded at build time (`EMBEDDED_REGISTRY = include_str!("../forge.workflows.toml")`) and validated when parsed (`WorkflowRegistry::from_toml`). It declares four workflows:
+`crates/forge-core/forge.workflows.toml` is the single authored workflow registry. It is not generated: editing a workflow is editing this file, never a frontend. It is embedded at build time (`EMBEDDED_REGISTRY = include_str!("../forge.workflows.toml")`) and validated when parsed (`WorkflowRegistry::from_toml`). It declares four workflows:
 
 | id | domain | target | tools |
 |---|---|---|---|
@@ -128,6 +130,8 @@ Some forge work (embedding, large-scale evaluation) runs better off-box. The sid
 
 Each walks all seven stages in order. The registry is rendered by the Svelte UI, executed by the `Pipeline`, and served by the sidecar's `forge.workflows` method. The TOML schema and validation rules are specified in [09-the-workflow-model](09-the-workflow-model.md).
 
+Alongside it, `crates/forge-core/forge.tasks.toml` is the second authored registry — the **task catalog** (*what* a run asks). It embeds the same way (`EMBEDDED_TASKS = include_str!("../forge.tasks.toml")`, validated by `TaskCatalog::from_toml`) and declares ten tasks across two scopes (`pilot` · `crate-intelligence`). Both registries reach the UI through one `forge_catalog` Tauri command, so the shell renders the engine's authored data instead of a hand-written table; the task model is in [09-the-workflow-model](09-the-workflow-model.md#8--the-task-catalog).
+
 ## 6. Crate-hosted assets
 
 Read-only engine assets ship *inside* the crates; only mutable runtime data lives in `forge/`. The shell addresses an asset from the workspace root with one helper (`engine_asset(relative)` = `workspace_root().join(relative)`), so an asset path is always repo-relative and never an absolute user path.
@@ -136,6 +140,7 @@ Read-only engine assets ship *inside* the crates; only mutable runtime data live
 |---|---|
 | Credential guides + governance | `crates/forge-core/forge.config.json` |
 | The workflow registry | `crates/forge-core/forge.workflows.toml` |
+| The task catalog | `crates/forge-core/forge.tasks.toml` |
 | CircleCI gate template | `crates/forge-sidecar/ci/circleci/config.yml` |
 | Modal search apps | `crates/forge-sidecar/remotes/modal/app.py`, `…/crate_intelligence_app.py` |
 | Kaggle evaluation job | `crates/forge-sidecar/remotes/kaggle/crate-intelligence/{README.md, crate_intelligence_eval.py}` |

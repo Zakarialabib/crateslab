@@ -138,7 +138,7 @@ Rules the code enforces: **local evidence is collected before any provider call*
 
 **[proposed — no Research view exists]**
 
-The capability exists as the workflow `cross-language-research` in `shell/src/forge-workflows.ts` (7 steps: *Pick a capability · Find comparable SDKs · Extract the excellent parts · Diff against the crate · Write adoption notes · Capture learning*), selectable from the Workbench's Task dropdown. There is **no** dedicated shortlist / scorecard / adoption-notes screen. The method and rubric are the workflow's own steps in `shell/src/forge-workflows.ts`, under the workflow model in [09-the-workflow-model](09-the-workflow-model.md).
+The capability exists as the engine-authored task `cross-language-research` in `crates/forge-core/forge.tasks.toml` (6 steps: *Pick a capability · Find comparable SDKs · Extract the excellent parts · Diff against the crate · Write adoption notes · Capture learning*), selectable from the Workbench's Task dropdown (served to the shell through `forge_catalog`). There is **no** dedicated shortlist / scorecard / adoption-notes screen. The method and rubric are the task's own steps, under the workflow model in [09-the-workflow-model](09-the-workflow-model.md).
 
 ```
 ┌─ CAPABILITY ─────────────────────────────────────────────────────────────────┐
@@ -285,7 +285,7 @@ Status: the tier data and helpers live in `shell/src/bonsai-models.ts` (`bonsaiT
 
 ## Consolidation notes
 
-- **Renamed the fleet surface to the forge.** The provider/evolution subsystem this file describes is now **the forge**: `FleetView`/`FleetSettings` are `ForgeView`/`ForgeSettings`, the queue key is `cratelab-forge-queue`, the empty-state class is `forge-lede`, the probe helper is `forge_probe_spec`, the runtime home is `forge/` (reports and `.env` live under `forge/`), and the workflow templates live in `shell/src/forge-workflows.ts`. The lab's unrelated mock *device* fleet (`MockFleet`) keeps its name.
+- **Renamed the fleet surface to the forge.** The provider/evolution subsystem this file describes is now **the forge**: `FleetView`/`FleetSettings` are `ForgeView`/`ForgeSettings`, the queue key is `cratelab-forge-queue`, the empty-state class is `forge-lede`, the probe helper is `forge_probe_spec`, the runtime home is `forge/` (reports and `.env` live under `forge/`), and the workflow registry + task catalog live in `crates/forge-core/forge.workflows.toml` / `forge.tasks.toml` (served through `forge_catalog`). The lab's unrelated mock *device* fleet (`MockFleet`) keeps its name.
 - **Merges UI wireframes v1 and v2.** The v2 quota-first framing (budgets lead; judgment is the product; nothing costs silently) **supersedes v1's** vanity-count / breadcrumb-only model; v1's keep-worthy parts (env chip, dry-run default, explicit provider, per-credential Probe, "How to get" links, hardware-hinted Bonsai picker, CSS bars, "every number is a link") are retained.
 - **Corrected the Bonsai fact**: 27B PQ2_0 = 7.21 GB fits a free T4 — the old "27B needs an A100" statement is dropped. The capacity numbers now live in [11-providers-and-capacity](11-providers-and-capacity.md), and `shell/src/bonsai-models.ts` already maps `T4 → 27B fits`.
 - **Brand normalised to `cratelab`** (lowercase) throughout; the `cratesLab` spelling in the source spec and in `TopHeader.svelte`'s markup is not repeated.
