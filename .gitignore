@@ -28,3 +28,6 @@ fleet/.modal-secret-*.env
 fleet/.kaggle-venv/
 fleet/kaggle/crate-intelligence/kernel-metadata.json
 fleet/.env-draft
+
+# stray Windows NUL artefacts (recreated by some tools)
+nul
