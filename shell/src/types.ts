@@ -153,6 +153,7 @@ export interface FleetProvider {
   state: string;
   probe_supported: boolean;
   probe_destination?: string | null;
+  setup_url?: string | null;
   probe_ok?: boolean | null;
   probe_checked_at?: number | null;
   available_models: string[];
@@ -167,6 +168,7 @@ export interface FleetRun {
   doc_candidates: number;
   report: string;
   completed_at: number;
+  repository?: string;
   provider?: string;
   model?: string;
   source_bytes?: number;
@@ -178,11 +180,17 @@ export interface FleetLivePreview {
   model: string;
   destination: string;
   target: string;
+  repository: string;
+  case_context: string;
+  learning_notes: string;
   files: string[];
   source_bytes: number;
   output_limit_tokens: number;
   retry_policy: string;
   route: { provider: string; model: string; destination: string; requests_left_today: number }[];
+  retrieval_enabled: boolean;
+  retrieval_project: string;
+  retrieval_destination?: string | null;
 }
 
 export interface FleetStatus {
@@ -190,7 +198,9 @@ export interface FleetStatus {
   target: string;
   target_path: string;
   target_available: boolean;
+  repositories: FleetRepository[];
   pilot: { workspace: string; crates: { id: string; package: string }[]; batch_size: number; tasks: string[] };
+  retrieval: { enabled: boolean; destination: string; projects?: string[] };
   selected_provider: string;
   providers: FleetProvider[];
   runs: FleetRun[];
@@ -203,3 +213,78 @@ export interface FleetStatus {
     target_writes: boolean;
   };
 }
+
+export interface FleetRepository { id: string; name: string; root: string; available: boolean; crate_count: number; crates: { id: string; package: string }[] }
+export interface FleetReport { name: string; kind: string; repository?: string | null; crate?: string | null; task?: string | null; size: number; modified: number; path: string }
+export interface FleetReportContent { name: string; path: string; content: string }
+export interface FleetDashboardData {
+  target: string;
+  repositories: FleetRepository[];
+  crates: { id: string; package: string }[];
+  runs: {
+    total: number;
+    by_day: Record<string, number>;
+    by_task: Record<string, number>;
+    by_repository: Record<string, number>;
+    recent: { completed_at: number; repository?: string; crate_id: string; target?: string; task: string; mode: string; source_files?: number; doc_candidates?: number; report?: string }[];
+  };
+  coverage: { workspace: string; percent: number; rows: number }[];
+  reports: { count: number; latest: FleetReport[] };
+  providers: { ready: number; total: number };
+  usage: { day?: string; requests?: Record<string, number>; tokens?: Record<string, number> };
+}
+
+export interface LearningNote { repository: string; task: string; crate_id: string; rating: "useful" | "partial" | "wrong"; note: string; created_at: number }
+
+export interface CircleCiPipeline {
+  id: string;
+  number: number | null;
+  state: string | null;
+  created_at: string | null;
+  branch: string | null;
+  revision: string | null;
+  trigger: string | null;
+}
+
+export interface CircleCiWorkflow {
+  id: string;
+  name: string;
+  status: string;
+  created_at: string | null;
+  stopped_at: string | null;
+}
+
+export interface CircleCiProject {
+  slug: string;
+  name: string;
+  connected: boolean;
+  state: string;
+  error: string | null;
+  http_status: number | null;
+  pipelines: CircleCiPipeline[];
+  latest_workflows: CircleCiWorkflow[];
+}
+
+export interface CircleCiDashboard {
+  checked_at: number;
+  account: { name: string | null; login: string | null };
+  organizations: { name: string | null; slug: string | null; vcs_type: string | null }[];
+  projects: CircleCiProject[];
+  configured_count: number;
+  connected_count: number;
+  limits: { max_projects: number; pipelines_per_project: number };
+  setup: {
+    project_slugs_configured: boolean;
+    template_present: boolean;
+    template_path: string;
+    target_config_present: boolean;
+    target_config_path: string;
+    target_root: string;
+  };
+}
+
+export interface CrateResearchPrompt { crate: string; task: string; description: string; prompt: string; evidence_items: number; prompt_template: string }
+export interface CrateKnowledgeSearch { crate: string; query: string; revision: string; hits: { score: number; project: string; crate: string; kind: string; source: string; path: string; start_line: number; revision: string; text: string }[]; count: number }
+
+export interface FleetSettingField { key: string; secret: boolean; configured: boolean; value: string | null; setup_url?: string | null }
+export interface FleetSettingsSnapshot { fields: FleetSettingField[]; env_path: string; modal_cli_installed: boolean; modal_profile_configured: boolean; hf_cli_installed: boolean; kaggle_cli_installed: boolean; crate_index_present: boolean; crate_index_bytes: number }

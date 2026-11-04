@@ -1,16 +1,21 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { api } from "../api";
-  import type { FleetLivePreview, FleetProvider, FleetRun, FleetStatus } from "../types";
+  import { fleetWorkflows } from "../fleet-workflows";
+  import type { CircleCiDashboard, FleetLivePreview, FleetProvider, FleetRun, FleetStatus, LearningNote } from "../types";
 
   let status = $state<FleetStatus | null>(null);
   let busy = $state(false);
   let loading = $state(true);
   let error = $state("");
   let lastRun = $state<FleetRun | null>(null);
-  let task = $state("rustdoc-audit");
+  let task = $state<string>("rustdoc-audit");
+  let caseContext = $state("");
+  let learningNotes = $state("");
   let crateId = $state("discovery");
-  type QueueItem = { id: string; crate_id: string; task: string; state: "pending" | "done" };
+  const workflow = $derived(fleetWorkflows.find((item) => item.id === task));
+  let ragProjectId = $state("simple-signage");
+  type QueueItem = { id: string; repository?: string; crate_id: string; task: string; state: "pending" | "done" };
   let queue = $state<QueueItem[]>([]);
   let probeTarget = $state<FleetProvider | null>(null);
   let probeBusy = $state(false);
@@ -19,6 +24,10 @@
   let liveBusy = $state(false);
   let liveAnswer = $state("");
   let liveError = $state("");
+  let circleCi = $state<CircleCiDashboard | null>(null);
+  let circleCiReview = $state(false);
+  let circleCiBusy = $state(false);
+  let circleCiError = $state("");
 
   const groups = [
     { label: "Inference", ids: ["gemini", "groq", "allam", "cloudflare", "nvidia", "openrouter", "zhipu"] },
@@ -39,21 +48,23 @@
 
   function stageBatch() {
     if (!status) return;
-    const alreadyStaged = new Set(queue.map((item) => `${item.crate_id}:${item.task}`));
+    const repository = status.target;
+    const alreadyStaged = new Set(queue.map((item) => `${item.repository ?? "tv-rs"}:${item.crate_id}:${item.task}`));
     const start = Math.max(0, status.pilot.crates.findIndex((crate) => crate.id === crateId));
     const ordered = [...status.pilot.crates.slice(start), ...status.pilot.crates.slice(0, start)];
-    const next = ordered.filter((crate) => !alreadyStaged.has(`${crate.id}:${task}`)).slice(0, status.pilot.batch_size);
-    const additions = next.map((crate) => ({ id: `${task}:${crate.id}`, crate_id: crate.id, task, state: "pending" as const }));
+    const next = ordered.filter((crate) => !alreadyStaged.has(`${repository}:${crate.id}:${task}`)).slice(0, status.pilot.batch_size);
+    const additions = next.map((crate) => ({ id: `${repository}:${task}:${crate.id}`, repository, crate_id: crate.id, task, state: "pending" as const }));
     saveQueue([...queue, ...additions]);
   }
 
-  function completeQueueItem(crate: string, taskName: string) {
-    const updated = queue.map((item) => item.crate_id === crate && item.task === taskName && item.state === "pending" ? { ...item, state: "done" as const } : item);
+  function completeQueueItem(repository: string, crate: string, taskName: string) {
+    const updated = queue.map((item) => (item.repository ?? "tv-rs") === repository && item.crate_id === crate && item.task === taskName && item.state === "pending" ? { ...item, state: "done" as const } : item);
     saveQueue(updated);
   }
 
   function selectQueueItem(item: QueueItem) {
     if (item.state !== "pending") return;
+    if (item.repository && item.repository !== status?.target) return;
     crateId = item.crate_id;
     task = item.task;
   }
@@ -63,6 +74,8 @@
     error = "";
     try {
       status = await api.fleetStatus();
+      if (!status.pilot.crates.some((crate) => crate.id === crateId)) crateId = status.pilot.crates[0]?.id ?? "";
+      learningNotes = currentLearningNotes(status.target, task);
     } catch (e) {
       error = String(e);
     } finally {
@@ -87,8 +100,8 @@
     error = "";
     lastRun = null;
     try {
-      lastRun = await api.fleetDryRun(task, crateId);
-      completeQueueItem(crateId, task);
+      lastRun = await api.fleetDryRun(task, crateId, caseContext);
+      completeQueueItem(status?.target ?? "tv-rs", crateId, task);
       status = await api.fleetStatus();
     } catch (e) {
       error = String(e);
@@ -140,7 +153,8 @@
     liveError = "";
     liveAnswer = "";
     try {
-      livePreview = await api.fleetPreviewLive(selected.id, selected.selected_model, crateId, task);
+      learningNotes = currentLearningNotes(status?.target ?? "tv-rs", task);
+      livePreview = await api.fleetPreviewLive(selected.id, selected.selected_model, crateId, task, ragProjectId, caseContext, learningNotes);
     } catch (e) {
       liveError = String(e);
     } finally {
@@ -153,10 +167,10 @@
     liveBusy = true;
     liveError = "";
     try {
-      const result = await api.fleetGenerateAudit(livePreview.provider, livePreview.model, crateId, task);
+      const result = await api.fleetGenerateAudit(livePreview.provider, livePreview.model, crateId, task, livePreview.retrieval_project, caseContext, learningNotes);
       liveAnswer = result.answer;
       lastRun = result.run;
-      completeQueueItem(crateId, task);
+      completeQueueItem(status?.target ?? "tv-rs", crateId, task);
       status = await api.fleetStatus();
       livePreview = null;
     } catch (e) {
@@ -164,6 +178,33 @@
     } finally {
       liveBusy = false;
     }
+  }
+
+  function currentLearningNotes(repository: string, workflow: string): string {
+    try {
+      const notes = JSON.parse(localStorage.getItem("cratelab-learning-notes") ?? "[]") as LearningNote[];
+      return notes.filter((item) => item.repository === repository && item.task === workflow).slice(-5)
+        .map((item) => `- ${item.rating}: ${item.note}`).join("\n");
+    } catch { return ""; }
+  }
+
+  // Capture a reviewed outcome note. Local-only, repository/task scoped;
+  // the next case for the same repo + workflow carries it into its prompt.
+  let noteRating = $state<"useful" | "partial" | "wrong">("useful");
+  let noteText = $state("");
+  let noteSaved = $state(false);
+  function saveLearningNote() {
+    const note = noteText.trim();
+    if (!note || !status) return;
+    let notes: LearningNote[] = [];
+    try { notes = JSON.parse(localStorage.getItem("cratelab-learning-notes") ?? "[]") as LearningNote[]; } catch { notes = []; }
+    notes.push({ repository: status.target, task, crate_id: crateId, rating: noteRating, note, created_at: Math.floor(Date.now() / 1000) });
+    localStorage.setItem("cratelab-learning-notes", JSON.stringify(notes.slice(-200)));
+    noteText = "";
+    noteRating = "useful";
+    noteSaved = true;
+    learningNotes = currentLearningNotes(status.target, task);
+    setTimeout(() => (noteSaved = false), 2500);
   }
 
   function selectedInference(): FleetProvider | undefined {
@@ -178,6 +219,28 @@
     return new Date(timestamp * 1000).toLocaleString();
   }
 
+  // The rail proves the ordering rule: local evidence (first steps) is
+  // collected before any provider call, and steps can fail independently.
+  function stepState(index: number): "done" | "active" | "todo" {
+    const steps = workflow?.steps ?? [];
+    const evidenceCount = Math.min(2, Math.max(1, steps.length - 1));
+    if (index < evidenceCount) return lastRun ? "done" : "todo";
+    if (index === evidenceCount) return liveAnswer ? "done" : lastRun ? "active" : "todo";
+    return liveAnswer ? "done" : "todo";
+  }
+
+  function ciTime(value: string | null): string {
+    return value ? new Date(value).toLocaleString() : "—";
+  }
+
+  async function loadCircleCi() {
+    circleCiBusy = true;
+    circleCiError = "";
+    try { circleCi = await api.fleetCircleciDashboard(); circleCiReview = false; }
+    catch (e) { circleCiError = String(e); }
+    finally { circleCiBusy = false; }
+  }
+
   let configuredCount = $derived(status?.providers.filter((p) => p.credential_ready).length ?? 0);
   let providerCount = $derived(status?.providers.length ?? 0);
 </script>
@@ -186,17 +249,16 @@
   <header class="fleet-header">
     <div>
       <div class="eyebrow"><span class="eyebrow-dot"></span> LOCAL CONTROL PLANE</div>
-      <h1 id="fleet-title">Inference fleet <span class="safe-pill">SAFE MODE</span></h1>
-      <p class="fleet-lede">Route crate work across free-tier providers, inspect readiness and usage, and keep every action reviewable from cratelab.</p>
+      <h1 id="fleet-title">Work orchestration <span class="safe-pill">REVIEW BEFORE DISPATCH</span></h1>
+      <p class="fleet-lede">Prepare a case, choose local evidence or provider analysis, and review the result for {status?.target ?? "the selected repository"}.</p>
     </div>
     <button class="ghost refresh-button" onclick={refresh} disabled={loading} aria-label="Refresh local provider readiness">
       <span class:spin={loading}>↻</span> Refresh status
     </button>
   </header>
 
-  {#if error}
-    <div class="fleet-alert" role="alert"><strong>Could not load fleet state</strong><span>{error}</span></div>
-  {/if}
+  {#if error}<div class="fleet-alert" role="alert"><span>{error}</span><button class="alert-close" onclick={() => (error = "")} aria-label="Dismiss">×</button></div>{/if}
+  {#if loading}<p class="fleet-lede">Loading fleet state…</p>{/if}
 
   <div class="fleet-metrics">
     <article class="metric-card metric-primary">
@@ -209,7 +271,7 @@
       <span class="metric-label">Provider actions</span><strong class="metric-off">Confirm first</strong><small>Confirmed runs use bounded fallback routing</small>
     </article>
     <article class="metric-card">
-      <span class="metric-label">Target scope</span><strong>{status?.pilot.crates.length ?? "—"} crates</strong><small>tv-rs workspace · batches of {status?.pilot.batch_size ?? 3}</small>
+      <span class="metric-label">Selected repository</span><strong>{status?.target ?? "—"}</strong><small>{status?.pilot.crates.length ?? "—"} crates · batches of {status?.pilot.batch_size ?? 3}</small>
     </article>
   </div>
 
@@ -221,11 +283,11 @@
     <div class="flow-track">
       <div class="flow-node"><span class="flow-index">01</span><strong>cratelab</strong><small>queue · policy · ledger</small></div>
       <span class="flow-arrow">→</span>
-      <div class="flow-node"><span class="flow-index">02</span><strong>Task gate</strong><small>scope · class · limits</small></div>
+      <div class="flow-node"><span class="flow-index">02</span><strong>Workflow</strong><small>case · scope · evidence</small></div>
       <span class="flow-arrow">→</span>
       <div class="flow-node flow-node-muted"><span class="flow-index">03</span><strong>Provider ladder</strong><small>confirmed · capped · logged</small></div>
       <span class="flow-arrow">→</span>
-      <div class="flow-node flow-node-muted"><span class="flow-index">04</span><strong>Knowledge layer</strong><small>HF · embeddings · search</small></div>
+      <div class="flow-node flow-node-muted"><span class="flow-index">04</span><strong>Knowledge context</strong><small>HF · Modal · optional docs</small></div>
       <span class="flow-arrow">→</span>
       <div class="flow-node"><span class="flow-index">05</span><strong>Human review</strong><small>local report · you decide</small></div>
     </div>
@@ -246,7 +308,7 @@
 
   <div class="fleet-columns">
     <section class="panel targets-panel">
-      <div class="panel-heading"><div><span class="section-kicker">WORKSPACES</span><h2>Active scope</h2></div><span class="count-chip">{(status?.pilot.crates.length ?? 0) + 1}</span></div>
+      <div class="panel-heading"><div><span class="section-kicker">REPOSITORY</span><h2>{status?.target ?? "Selected source"}</h2></div><span class="count-chip">{status?.pilot.crates.length ?? 0} crates</span></div>
       <article class="target-card control-target">
         <div class="target-top"><span class="target-icon">CL</span><span class="target-tag control-tag">CONTROL CENTER</span></div>
         <h3>cratelab</h3><p>Owns the router, local settings, run history, safety rules, and this UI.</p>
@@ -254,44 +316,95 @@
       </article>
       <article class="target-card">
         <div class="target-top"><span class="target-icon target-icon-green">RS</span><span class="target-tag">RUST LIBRARY</span></div>
-        <h3>tv-rs workspace</h3><p>All catalogued crates are eligible for read-only research and documentation tasks. Work is triaged in small batches.</p>
-        <div class="target-foot"><span>Workspace source</span><b class:status-ok={status?.target_available} class:status-bad={status && !status.target_available}>{status?.target_available ? `${status?.pilot.crates.length} crates available` : loading ? "Checking…" : "Not found"}</b></div>
+        <h3>{status?.target ?? "Rust workspace"}</h3><p>{status?.target_path}. Repository selection is shared with the Ops Dashboard; source scans are read-only.</p>
+        <div class="target-foot"><span>Workspace source</span><b class:status-ok={status?.target_available} class:status-bad={status && !status.target_available}>{status?.target_available ? `${status?.pilot.crates.length} crates available` : loading ? "Checking…" : "Path unavailable"}</b></div>
       </article>
-      <div class="scope-note"><strong>Scope lock</strong><span>Other crates and private repositories are excluded. The target workspace is never modified by a dry run.</span></div>
+      <div class="scope-note"><strong>Read-only target</strong><span>Only the selected crate source enters a case. Local preparation writes reports under Fleet; it never edits this repository.</span></div>
     </section>
 
     <section class="panel run-panel">
-      <div class="panel-heading"><div><span class="section-kicker">TASK DISPATCH</span><h2>Prepare a run</h2></div><span class="local-only">LOCAL ONLY</span></div>
-      <label class="field-label" for="fleet-crate">Crate</label>
-      <select id="fleet-crate" bind:value={crateId} disabled={busy || liveBusy || loading}>
-        {#each status?.pilot.crates ?? [] as crate (crate.id)}<option value={crate.id}>{crate.package}</option>{/each}
-      </select>
-      <label class="field-label" for="fleet-task">Task</label>
-      <select id="fleet-task" bind:value={task}>
-        {#each status?.pilot.tasks ?? ["rustdoc-audit"] as taskOption (taskOption)}
-          <option value={taskOption}>{taskOption === "rustdoc-audit" ? "Rustdoc audit · documentation only" : "Research summary · evidence and open questions"}</option>
+      <div class="panel-heading"><div><span class="section-kicker">CASE WORKBENCH</span><h2>Build a case packet</h2></div><span class="local-only">DRY RUN DEFAULT</span></div>
+
+      <div class="case-selectors">
+        <div class="case-field">
+          <span class="field-label">Repository</span>
+          <b class="case-repo">{status?.target ?? "—"}</b>
+          <small>switch scope in the top header</small>
+        </div>
+        <label class="case-field" for="fleet-crate">
+          <span class="field-label">Crate</span>
+          <select id="fleet-crate" bind:value={crateId} disabled={busy || liveBusy || loading}>
+            {#each status?.pilot.crates ?? [] as crate (crate.id)}<option value={crate.id}>{crate.package}</option>{/each}
+          </select>
+        </label>
+        <label class="case-field" for="fleet-task">
+          <span class="field-label">Task</span>
+          <select id="fleet-task" bind:value={task}>
+            {#each fleetWorkflows as workflow (workflow.id)}
+              <option value={workflow.id}>{workflow.group} · {workflow.label}</option>
+            {/each}
+          </select>
+        </label>
+        <label class="case-field" for="fleet-provider">
+          <span class="field-label">Provider (rung)</span>
+          <select id="fleet-provider" value={status?.selected_provider ?? ""} onchange={(event) => event.currentTarget.value && selectProvider(event.currentTarget.value)} disabled={busy || loading}>
+            <option value="">No provider selected</option>
+            {#each (status?.providers ?? []).filter((p) => ["gemini", "groq", "cloudflare", "nvidia", "openrouter", "zhipu", "colab-bonsai", "kaggle-bonsai"].includes(p.id)) as p (p.id)}
+              <option value={p.id}>{p.name}{p.credential_ready ? " · credential present" : " · not configured"}</option>
+            {/each}
+          </select>
+          <small>always explicit · no silent fallback</small>
+        </label>
+        {#if selectedInference()?.available_models.length}
+          <label class="case-field" for="fleet-model">
+            <span class="field-label">Model</span>
+            <select id="fleet-model" value={selectedInference()?.selected_model ?? ""} onchange={(event) => selectModel(event.currentTarget.value)} disabled={busy || loading}>
+              <option value="">Select a discovered model</option>
+              {#each selectedInference()?.available_models ?? [] as model (model)}<option value={model}>{model}</option>{/each}
+            </select>
+            <small>served by the rung · from its last probe</small>
+          </label>
+        {/if}
+      </div>
+
+      <div class="step-rail" aria-label="Case steps">
+        {#each workflow?.steps ?? [] as step, i (i)}
+          <div class="step-node" class:step-done={stepState(i) === "done"} class:step-active={stepState(i) === "active"}>
+            <span class="step-index">{i + 1}</span><span class="step-label">{step}</span>
+          </div>
         {/each}
+      </div>
+      <p class="button-caption">Local evidence is collected before any provider call. A failed context step degrades to local-evidence-only and says so.</p>
+      <div class="workflow-recipe"><strong>{workflow?.local}</strong><ol>{#each workflow?.steps ?? [] as step, i (`${workflow?.id}-${i}`)}<li>{step}</li>{/each}</ol><small>Provider step: {workflow?.live}</small></div>
+      <label class="field-label" for="case-context">Case details / issue text (optional)</label>
+      <textarea id="case-context" class="case-context-input" bind:value={caseContext} rows="4" maxlength="12000" placeholder="Describe the symptom, feature question, or issue text. Issue links are not fetched automatically."></textarea>
+      {#if learningNotes}<div class="learning-context"><strong>Learning notes carried into this workflow</strong><pre>{learningNotes}</pre></div>{/if}
+      <div class="learning-capture">
+        <label class="field-label" for="learning-note">Capture learning note (local, {status?.target ?? "repo"} / {task})</label>
+        <div class="learning-capture-row">
+          <select id="learning-rating" bind:value={noteRating}>
+            <option value="useful">useful</option>
+            <option value="partial">partial</option>
+            <option value="wrong">wrong</option>
+          </select>
+          <input id="learning-note" bind:value={noteText} placeholder="What did this workflow get right or wrong? Carried into future cases for this repo + workflow." maxlength="2000" />
+          <button class="ghost" onclick={saveLearningNote} disabled={!noteText.trim()}>Save note</button>
+        </div>
+        {#if noteSaved}<small class="note-saved">✓ saved — included in the next case for this repository + workflow</small>{/if}
+      </div>
+      <label class="field-label" for="fleet-rag-project">Signage docs context (optional)</label>
+      <select id="fleet-rag-project" bind:value={ragProjectId} disabled={liveBusy}>
+        <option value="">No signage docs</option>
+        <option value="simple-signage">Simple-Signage docs</option>
+        <option value="companion-app">Companion-app docs</option>
       </select>
-      <label class="field-label" for="fleet-provider">Preferred provider (saved locally)</label>
-      <select id="fleet-provider" value={status?.selected_provider ?? ""} onchange={(event) => event.currentTarget.value && selectProvider(event.currentTarget.value)} disabled={busy || loading}>
-        <option value="">No provider selected</option>
-        {#each (status?.providers ?? []).filter((p) => ["gemini", "groq", "cloudflare", "nvidia", "openrouter", "zhipu", "colab-bonsai", "kaggle-bonsai"].includes(p.id)) as p (p.id)}
-          <option value={p.id}>{p.name}{p.credential_ready ? " · credential present" : " · not configured"}</option>
-        {/each}
-      </select>
-      {#if selectedInference()?.available_models.length}
-        <label class="field-label" for="fleet-model">Model from latest provider probe</label>
-        <select id="fleet-model" value={selectedInference()?.selected_model ?? ""} onchange={(event) => selectModel(event.currentTarget.value)} disabled={busy || loading}>
-          <option value="">Select a discovered model</option>
-          {#each selectedInference()?.available_models ?? [] as model (model)}<option value={model}>{model}</option>{/each}
-        </select>
-      {/if}
-      <div class="dispatch-hint"><span class="hint-icon">i</span><span>Selection is local. Use the provider row’s Probe button to verify credentials; that sends the key only, not crate files.</span></div>
+      <div class="dispatch-hint"><span class="hint-icon">i</span><span>Selected docs are private project material. After you confirm, up to six matching snippets may be sent to Modal and then the inference provider.</span></div>
+      <div class="dispatch-hint"><span class="hint-icon">i</span><span>Selection is local. Use the rung row’s Probe button to verify credentials; that sends the key only, not crate files.</span></div>
       <button class="ghost provider-run-button" onclick={stageBatch} disabled={loading || !status?.pilot.crates.length}>Stage next batch of {status?.pilot.batch_size ?? 3}</button>
-      {#if queue.length}
+      {#if queue.some((item) => (item.repository ?? "tv-rs") === status?.target)}
         <div class="queue-list" aria-label="Local crate task queue">
-          <strong>Local queue · {queue.filter((item) => item.state === "pending").length} pending</strong>
-          {#each queue.slice(-12) as item (item.id)}
+          <strong>{status?.target} cases · {queue.filter((item) => (item.repository ?? "tv-rs") === status?.target && item.state === "pending").length} pending</strong>
+          {#each queue.filter((item) => (item.repository ?? "tv-rs") === status?.target).slice(-12) as item (item.id)}
             <button class="queue-item" class:queue-done={item.state === "done"} onclick={() => selectQueueItem(item)} disabled={item.state === "done"}>
               <span>{status?.pilot.crates.find((crate) => crate.id === item.crate_id)?.package ?? item.crate_id}</span>
               <small>{item.task} · {item.state}</small>
@@ -299,22 +412,45 @@
           {/each}
         </div>
       {/if}
-      <button class="ghost provider-run-button" onclick={previewLiveRun} disabled={liveBusy || !selectedInference()?.credential_ready || selectedInference()?.probe_ok !== true || !selectedInference()?.selected_model}>
-        {liveBusy ? "Preparing…" : "Preview outbound model run"}
-      </button>
-      <button class="primary run-button" onclick={runDryRun} disabled={busy || loading || !status?.target_available}>
-        {#if busy}<span class="button-spinner"></span> Working…{:else}<span>▶</span> Run local {task === "research-summary" ? "inventory" : "dry audit"}{/if}
-      </button>
-      <p class="button-caption">Scans the selected crate and writes a local report. No edits, issues, or PRs.</p>
-      {#if lastRun}
-        <div class="run-result" role="status">
-          <div class="result-top"><span class="result-check">✓</span><strong>Dry run complete</strong><span class="result-time">{time(lastRun.completed_at)}</span></div>
-          <div class="result-stats"><span><b>{lastRun.source_files}</b> Rust files</span><span><b>{lastRun.doc_candidates}</b> doc candidates</span></div>
-          <code class="report-path">{lastRun.report}</code>
+      <div class="live-gates">
+        <span class:gate-ok={selectedInference()?.probe_ok === true}>rung probed ✓</span>
+        <span class:gate-ok={!!selectedInference()?.selected_model}>model explicit</span>
+        <span class:gate-ok={!!lastRun}>local evidence prepared</span>
+      </div>
+      <div class="run-actions">
+        <button class="primary run-button" onclick={runDryRun} disabled={busy || loading || !status?.target_available}>
+          {#if busy}<span class="button-spinner"></span> Preparing…{:else}<span>▶</span> Dry run{/if}
+        </button>
+        <button class="ghost provider-run-button live-run" onclick={previewLiveRun} disabled={liveBusy || !selectedInference()?.credential_ready || selectedInference()?.probe_ok !== true || !selectedInference()?.selected_model}>
+          {liveBusy ? "Preparing…" : "Run live (review first)"}
+        </button>
+      </div>
+      <p class="button-caption">Dry run is local and free — it prepares evidence only. Run live opens the outbound request for review first and stays on free-tier rungs.</p>
+      {#if lastRun || liveAnswer}
+        <div class="evidence-split">
+          <div class="evidence-pane">
+            <span class="section-kicker">EVIDENCE · LOCAL, BEFORE ANY RESULT</span>
+            {#if lastRun}
+              <div class="run-result" role="status">
+                <div class="result-top"><span class="result-check">✓</span><strong>Case packet prepared · {lastRun.repository ?? status?.target}</strong><span class="result-time">{time(lastRun.completed_at)}</span></div>
+                <div class="result-stats"><span><b>{lastRun.source_files}</b> Rust files</span><span><b>{lastRun.doc_candidates}</b> doc candidates</span></div>
+                <code class="report-path">{lastRun.report}</code>
+              </div>
+            {:else}
+              <p class="fleet-lede">No local evidence yet — run a dry run first.</p>
+            {/if}
+          </div>
+          <div class="evidence-pane">
+            <span class="section-kicker">RESULT · PROVIDER, REVIEWED</span>
+            {#if liveAnswer}
+              <div class="provider-answer"><div class="answer-heading"><strong>Analysis result · {task}</strong><span>Saved locally · review before any follow-up</span></div><pre>{liveAnswer}</pre></div>
+            {:else}
+              <p class="fleet-lede">No provider result yet. Dry run first, then Run live with a probed rung.</p>
+            {/if}
+          </div>
         </div>
       {/if}
-      {#if liveError}<div class="fleet-alert" role="alert">{liveError}</div>{/if}
-      {#if liveAnswer}<div class="provider-answer"><div class="answer-heading"><strong>Provider audit result</strong><span>Saved locally · review before any edits</span></div><pre>{liveAnswer}</pre></div>{/if}
+      {#if liveError}<div class="fleet-alert" role="alert"><span>{liveError}</span><button class="alert-close" onclick={() => (liveError = "")} aria-label="Dismiss">×</button></div>{/if}
     </section>
   </div>
 
@@ -328,7 +464,8 @@
         <div class="provider-group">
           <h3>{group.label}</h3>
           <div class="provider-list">
-            {#each group.ids.map(provider) as p (p?.id)}
+            {#each group.ids as providerId (providerId)}
+              {@const p = provider(providerId)}
               {#if p}
                 <div class="provider-row" class:provider-selected={p.selected}>
                   <span class="provider-mark" class:mark-ready={p.credential_ready}>{p.name.slice(0, 2).toUpperCase()}</span>
@@ -336,6 +473,8 @@
                   <span class="provider-state" class:state-ready={p.probe_ok === true} class:state-pending={p.credential_ready && p.probe_ok == null} class:state-failed={p.probe_ok === false}><i></i>{p.state}</span>
                   {#if p.probe_supported && p.credential_ready}
                     <button class="probe-button" onclick={() => openProbe(p)} disabled={probeBusy}>{p.probe_ok === true ? "Recheck" : "Probe"}</button>
+                  {:else if !p.credential_ready && p.setup_url}
+                    <a class="probe-button setup-provider-link" href={p.setup_url} target="_blank" rel="noreferrer">Get access ↗</a>
                   {:else}<span class="probe-spacer"></span>{/if}
                   <span class="provider-role">{p.role}</span>
                 </div>
@@ -349,14 +488,53 @@
   </section>
 
   <section class="rag-panel panel">
-    <div class="panel-heading"><div><span class="section-kicker">KNOWLEDGE PIPELINE</span><h2>Retrieval-augmented context</h2><p>Full tv-rs corpus is built locally; embedding and hosted search remain staged.</p></div><span class="local-only">LOCAL CORPUS</span></div>
+    <div class="panel-heading"><div><span class="section-kicker">KNOWLEDGE PIPELINE</span><h2>Retrieval-augmented context</h2><p>Docs-only corpus from Simple-Signage and companion-app; private HF sync and Modal search are opt-in.</p></div><span class="local-only">{status?.retrieval.enabled ? "CONNECTED" : "LOCAL CORPUS"}</span></div>
     <div class="rag-track">
-      <div class="rag-step"><span>01 · SOURCE</span><strong>tv-rs workspace</strong><small>All {status?.pilot.crates.length ?? 0} crates catalogued · corpus stays local</small></div><span class="rag-arrow">→</span>
-      <div class="rag-step rag-pending"><span>02 · EMBED</span><strong>Kaggle + BGE-M3</strong><small>Batch index with crate:// headers</small></div><span class="rag-arrow">→</span>
+      <div class="rag-step"><span>01 · SOURCE</span><strong>Signage project docs</strong><small>Simple-Signage + companion-app · corpus stays local</small></div><span class="rag-arrow">→</span>
+      <div class="rag-step rag-pending"><span>02 · INDEX</span><strong>Local BM25</strong><small>Chunked docs with project:// provenance</small></div><span class="rag-arrow">→</span>
       <div class="rag-step rag-pending"><span>03 · STORE</span><strong>Hugging Face</strong><small>Private dataset is source of truth</small></div><span class="rag-arrow">→</span>
-      <div class="rag-step rag-pending"><span>04 · SEARCH</span><strong>Modal /search</strong><small>Optional Qdrant serving layer</small></div>
+      <div class="rag-step" class:rag-pending={!status?.retrieval.enabled}><span>04 · SEARCH</span><strong>Modal /search</strong><small>{status?.retrieval.enabled ? status.retrieval.destination : "Configure endpoint and token to enable"}</small></div>
     </div>
-    <div class="rag-foot"><span>Current mode: direct selected-crate scan</span><span>No dataset upload, embedding job, or hosted endpoint has run</span></div>
+    <div class="rag-foot"><span>{status?.retrieval.enabled ? "Retrieval runs only after provider-run confirmation" : "Current mode: direct selected-crate scan"}</span><span>Dataset upload and deployment remain manual</span></div>
+  </section>
+
+  <section class="panel circleci-panel">
+    <div class="panel-heading providers-heading">
+      <div><span class="section-kicker">RESEARCH & DOCS GATES</span><h2>CircleCI operations</h2><p>Read-only account, project, pipeline, and workflow status. Fleet does not trigger pipelines or change CircleCI/GitHub settings.</p></div>
+      <button class="ghost" onclick={() => (circleCiReview = true)} disabled={circleCiBusy || !provider("circleci")?.credential_ready}>{circleCiBusy ? "Loading…" : circleCi ? "Refresh CI status" : "Review status request"}</button>
+    </div>
+    {#if circleCi}
+      <div class="ci-metrics">
+        <article><span>Account</span><strong>{circleCi.account.name || circleCi.account.login || "Authenticated"}</strong></article>
+        <article><span>Projects connected</span><strong>{circleCi.connected_count} / {circleCi.configured_count}</strong></article>
+        <article><span>Organizations visible</span><strong>{circleCi.organizations.length}</strong></article>
+        <article><span>Last checked</span><strong>{time(circleCi.checked_at)}</strong></article>
+      </div>
+      {#if !circleCi.setup.project_slugs_configured}
+        <div class="ci-setup-note"><strong>Project list is empty.</strong><span>In Fleet Settings, set <code>CIRCLECI_PROJECT_SLUGS</code> to a comma-separated list such as <code>gh/Zakarialabib/tv-rs</code>.</span><a href="https://app.circleci.com/projects" target="_blank" rel="noreferrer">Connect a project in CircleCI ↗</a></div>
+      {:else}
+        <div class="ci-project-list">
+          {#each circleCi.projects as project (project.slug)}
+            <article class="ci-project-card">
+              <div class="ci-project-heading"><div><strong>{project.name}</strong><code>{project.slug}</code></div><span class="ci-state" class:ci-connected={project.connected}>{project.connected ? project.state : "Not connected / not visible"}</span></div>
+              {#if project.error}<p class="ci-project-error">{project.error}</p>{/if}
+              {#if project.connected}
+                {#if project.pipelines.length}
+                  <div class="ci-pipeline-line"><strong>Latest pipeline #{project.pipelines[0].number ?? "—"}</strong><span>{project.pipelines[0].state || "unknown"}</span><span>{project.pipelines[0].branch || "branch unavailable"}</span><time>{ciTime(project.pipelines[0].created_at)}</time></div>
+                  {#if project.latest_workflows.length}<div class="ci-workflow-list"><span class="section-kicker">LATEST PIPELINE WORKFLOWS</span>{#each project.latest_workflows as workflow (workflow.id)}<div><strong>{workflow.name}</strong><span class="ci-workflow-status">{workflow.status}</span><time>{ciTime(workflow.stopped_at || workflow.created_at)}</time></div>{/each}</div>{/if}
+                {:else}<p class="ci-project-error">No pipelines have been returned for this project.</p>{/if}
+              {/if}
+            </article>
+          {/each}
+        </div>
+      {/if}
+      <div class="ci-template-status"><span class="legend-dot" class:ready={circleCi.setup.template_present}></span><span>Fleet gate template {circleCi.setup.template_present ? "ready" : "missing"}: <code>{circleCi.setup.template_path}</code></span><span class="legend-dot" class:ready={circleCi.setup.target_config_present}></span><span>Target config {circleCi.setup.target_config_present ? "present" : "not installed"}: <code>{circleCi.setup.target_config_path}</code></span></div>
+      {#if !circleCi.setup.target_config_present}<p class="ci-setup-note"><strong>Setup next:</strong> connect the selected repository’s project in CircleCI, review the Fleet Rust gate template, then add it to that target through your normal Git review.</p>{/if}
+    {:else}
+      <div class="empty-history"><span class="empty-icon">CI</span><div><strong>CI status has not been loaded</strong><p>Configure a CircleCI token and project slug in Settings, then review the read-only request.</p></div></div>
+    {/if}
+      {#if circleCiError}<div class="fleet-alert" role="alert"><span>{circleCiError}</span><button class="alert-close" onclick={() => (circleCiError = "")} aria-label="Dismiss">×</button></div>{/if}
+    <div class="provider-footnote"><strong>External action boundary.</strong> Loading sends the CircleCI token to CircleCI API v2 and reads up to five recent pipeline rows per configured project. It does not start, cancel, or retry jobs.</div>
   </section>
 
   <section class="panel history-panel">
@@ -391,16 +569,32 @@
     <div class="modal-backdrop" role="presentation">
       <dialog class="confirm-modal live-modal" open aria-labelledby="live-title">
         <span class="modal-kicker">OUTBOUND MODEL REQUEST</span>
-        <h2 id="live-title">Send crate context to {livePreview.provider}?</h2>
+        <h2 id="live-title">Send {livePreview.repository} case to {livePreview.provider}?</h2>
         <p>This sends public README and Rust source files for {livePreview.target} to the selected provider. Cargo manifests and lockfiles are excluded. Its data handling follows that provider’s terms.</p>
         <code class="modal-destination">{livePreview.destination}</code>
         <div class="modal-detail"><strong>Model</strong><span>{livePreview.model}</span></div>
+        <div class="modal-detail"><strong>Workflow and case</strong><span>{task} · {livePreview.case_context || "No extra case details supplied"}</span></div>
+        {#if livePreview.learning_notes}<div class="modal-detail"><strong>Reviewed learning notes sent</strong><span>{livePreview.learning_notes}</span></div>{/if}
         <div class="modal-detail"><strong>Files and size</strong><span>{livePreview.files.length} files · {Math.ceil(livePreview.source_bytes / 1024)} KB source context · max 1,200 output tokens</span></div>
         <div class="modal-detail"><strong>Eligible route</strong><span>{livePreview.route.map((item) => `${item.provider} (${item.model}, local cap remaining ${item.requests_left_today})`).join(" → ") || "No fallback is currently eligible"}</span></div>
+        {#if livePreview.retrieval_enabled && livePreview.retrieval_project}<div class="modal-detail"><strong>Private docs retrieval</strong><span>After confirmation, query {livePreview.retrieval_destination} for {livePreview.retrieval_project}; up to 6 matching snippets will be attached to this prompt and sent to the selected provider.</span></div>{/if}
         <div class="modal-file-list">{#each livePreview.files as file (file)}<span>{file}</span>{/each}</div>
         <div class="modal-detail"><strong>Routing and cost</strong><span>After confirmation, configured and successfully probed fallback providers may also receive the same source context, within local request caps. Calls may consume quota or incur charges depending on account billing; verify every eligible model is free before continuing.</span></div>
         {#if liveError}<div class="modal-message" role="alert">{liveError}</div>{/if}
         <div class="modal-actions"><button class="ghost" onclick={() => (livePreview = null)} disabled={liveBusy}>Cancel</button><button class="primary" onclick={confirmLiveRun} disabled={liveBusy}>{liveBusy ? "Sending…" : `Send source to ${livePreview.provider}`}</button></div>
+      </dialog>
+    </div>
+  {/if}
+
+  {#if circleCiReview}
+    <div class="modal-backdrop" role="presentation">
+      <dialog class="confirm-modal" open aria-labelledby="circleci-review-title">
+        <span class="modal-kicker">READ-ONLY CIRCLECI REQUEST</span>
+        <h2 id="circleci-review-title">Load CircleCI operations status?</h2>
+        <p>Fleet will send the saved <strong>CIRCLECI_TOKEN</strong> to CircleCI API v2 and request your account, visible organizations, and recent pipeline/workflow status for the configured project slugs.</p>
+        <div class="modal-detail"><strong>Project slugs</strong><span>{circleCi?.projects.map((project) => project.slug).join(", ") || "Read from Fleet Settings when you continue"}</span></div>
+        <div class="modal-detail"><strong>Scope</strong><span>GET requests only · at most 12 projects · latest 5 pipeline summaries per project · no source upload, job trigger, cancellation, or settings changes.</span></div>
+        <div class="modal-actions"><button class="ghost" onclick={() => (circleCiReview = false)} disabled={circleCiBusy}>Cancel</button><button class="primary" onclick={loadCircleCi} disabled={circleCiBusy}>{circleCiBusy ? "Reading CircleCI…" : "Send token and load status"}</button></div>
       </dialog>
     </div>
   {/if}
