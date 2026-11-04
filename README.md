@@ -2,6 +2,8 @@
 
 **A local lab that turns published crates into testable, UI-generatable surfaces.**
 
+**Documentation:** start at [docs/00-index.md](docs/00-index.md) — the numbered doc set covers the architecture, the manifest contract, the CLI, the Tauri shell, and the fleet.
+
 cratelab is a Rust workspace + Tauri v2 shell built around one idea: your
 workspaces (`tv-rs`, `cctv-rs`) already declare their command surface in
 **typed Rust enums** with doc comments, capability sets and error taxonomies.
@@ -64,12 +66,14 @@ cargo run -p lab-engine --bin lab -- gate manifests scenarios
 cargo run -p lab-generate -- <path-to>/command.rs CommandId \
         --prefix tv --out manifests/generated/tv-rs.commands.json
 
-# online discovery (crates.io sparse index; needs network)
-cargo run -p lab-engine --features registry --bin lab -- discover ~/code/tv-rs
+# discovery: reads a local workspace checkout (offline)
+cargo run -p lab-engine --bin lab -- discover ~/code/tv-rs
 
-# the GUI
-cd shell && npm install && npm run tauri dev
+# the GUI (Bun + Tauri v2)
+cd shell && bun install && bun run tauri dev
 ```
+
+> The crates.io sparse-index registry path is feature-gated (`--features registry`) and is **not yet wired into the `discover` subcommand** — `lab discover` always reads the local checkout. See [docs/03-cli-and-workflows.md](docs/03-cli-and-workflows.md).
 
 ## The manifest in one screen
 
@@ -143,9 +147,14 @@ ids (`tv.power_off`).
 
 ## Status
 
-* Core crates: compile + 34 unit tests green on stable Rust (edition 2021).
-* `shell/` is a scaffold: UI code is complete enough to run, but the Tauri
-  build needs the platform webview packages (webkit2gtk-4.1 on Linux) and is
-  therefore kept out of the main workspace.
-* Registry discovery is feature-gated (`--features registry`) to keep the
-  default test profile offline.
+* Core crates: compile + 44 unit tests green on stable Rust (edition 2021);
+  `cargo clippy --workspace --all-targets` is clean.
+* `shell/` is a Tauri v2 + **Svelte 5 (runes)** desktop app on **Bun** — the UI
+  is complete enough to run, but the Tauri build needs the platform webview
+  packages (webkit2gtk-4.1 on Linux) and is therefore kept out of the main
+  workspace.
+* `lab gate` is **warn-only** by design: it reports thresholds but always exits
+  0. See [docs/03-cli-and-workflows.md](docs/03-cli-and-workflows.md).
+* The crates.io sparse-index registry path is feature-gated
+  (`--features registry`) to keep the default test profile offline, and is not
+  yet wired into the `discover` subcommand.
