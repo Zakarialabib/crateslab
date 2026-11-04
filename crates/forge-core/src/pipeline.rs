@@ -90,16 +90,101 @@ pub trait RuleSet {
     fn evaluate(&self, stage: &Stage, prior: &[StageRun]) -> RuleVerdict;
 }
 
-/// The default rule set: clear every authored gate.
+/// The trivial rule set: clear every authored gate.
 ///
-/// Real rules arrive with the scripted-prompt layer (e.g. "refuse to propose
-/// when the evidence packet is empty").
+/// Use it only for a structural dry walk ([`Pipeline::dry_run`]) — it performs
+/// no evidence check, so it can never refuse. Real runs use [`GateRules`].
 #[derive(Debug, Clone, Copy, Default)]
 pub struct AllowAll;
 
 impl RuleSet for AllowAll {
     fn evaluate(&self, _stage: &Stage, _prior: &[StageRun]) -> RuleVerdict {
         RuleVerdict::Pass
+    }
+}
+
+/// The forge's deterministic refusal rules.
+///
+/// Consulted at every authored gate, gated on the number of grounded evidence
+/// items the run retrieved. It is a pure function of the stage, the stages
+/// already run and that count — no clock, no RNG, no I/O — so the same workflow
+/// with the same evidence always yields the same refusals.
+///
+/// Three rules, one per gated decision:
+///
+/// * **Research** — refuse (`no-evidence`) when nothing was retrieved: there is
+///   nothing to study, so the run declines instead of guessing.
+/// * **Propose** — refuse (`no-evidence`) unless a research gate was cleared and
+///   the packet is non-empty: *refuse to propose when the evidence packet is
+///   empty*.
+/// * **Validate** — refuse (`unproposed-artifact`) unless a propose gate was
+///   cleared: an artifact is never emitted without a cleared proposal.
+#[derive(Debug, Clone, Copy)]
+pub struct GateRules {
+    /// Number of grounded evidence items available to the run.
+    evidence: usize,
+}
+
+impl GateRules {
+    /// Rules gated on `evidence`, the number of grounded evidence items.
+    pub fn with_evidence(evidence: usize) -> Self {
+        Self { evidence }
+    }
+
+    /// True when the run retrieved no grounded evidence.
+    pub fn has_no_evidence(&self) -> bool {
+        self.evidence == 0
+    }
+}
+
+impl RuleSet for GateRules {
+    fn evaluate(&self, stage: &Stage, prior: &[StageRun]) -> RuleVerdict {
+        let Some(gate) = stage.gate else {
+            return RuleVerdict::Pass;
+        };
+        let cleared = |gate: Gate| {
+            prior
+                .iter()
+                .any(|run| run.gate == Some(gate) && run.verdict == RuleVerdict::Pass)
+        };
+        match gate {
+            Gate::Research => {
+                if self.has_no_evidence() {
+                    RuleVerdict::Refuse(Refusal::new(
+                        "no-evidence",
+                        format!("stage '{}' found no grounded evidence to study", stage.id),
+                    ))
+                } else {
+                    RuleVerdict::Pass
+                }
+            }
+            Gate::Propose => {
+                if !cleared(Gate::Research) || self.has_no_evidence() {
+                    RuleVerdict::Refuse(Refusal::new(
+                        "no-evidence",
+                        format!(
+                            "refusing to propose at '{}': the evidence packet is empty",
+                            stage.id
+                        ),
+                    ))
+                } else {
+                    RuleVerdict::Pass
+                }
+            }
+            Gate::Validate => {
+                if cleared(Gate::Propose) {
+                    RuleVerdict::Pass
+                } else {
+                    RuleVerdict::Refuse(Refusal::new(
+                        "unproposed-artifact",
+                        format!(
+                            "refusing to emit an artifact at '{}': no cleared proposal",
+                            stage.id
+                        ),
+                    ))
+                }
+            }
+        }
     }
 }
 
@@ -115,8 +200,19 @@ impl<'a> Pipeline<'a> {
         Self { workflow }
     }
 
-    /// Run with the default (allow-all) rule set.
-    pub fn run(&self) -> ForgeResult<PipelineOutcome> {
+    /// Run gated on `evidence`, the number of grounded evidence items retrieved.
+    ///
+    /// Uses [`GateRules`], so a run with no evidence refuses at the first gate
+    /// instead of proposing anything. Refusals are data: the run still exits `0`.
+    pub fn run(&self, evidence: usize) -> ForgeResult<PipelineOutcome> {
+        self.run_with_rules(&GateRules::with_evidence(evidence))
+    }
+
+    /// Walk every stage unconditionally, consulting no rules.
+    ///
+    /// A structural dry walk for validation and UI rendering only; it performs
+    /// no evidence check, so it can never refuse.
+    pub fn dry_run(&self) -> ForgeResult<PipelineOutcome> {
         self.run_with_rules(&AllowAll)
     }
 
@@ -173,14 +269,52 @@ mod tests {
     }
 
     #[test]
-    fn allow_all_walks_every_stage_and_emits_one_artifact() {
+    fn dry_run_walks_every_stage_and_emits_one_artifact() {
         let workflow = first_workflow();
-        let outcome = Pipeline::new(&workflow).run().expect("runs");
+        let outcome = Pipeline::new(&workflow).dry_run().expect("runs");
         assert_eq!(outcome.runs.len(), workflow.stages.len());
         assert!(!outcome.refused());
         assert!(!outcome.halted);
         assert_eq!(outcome.artifacts.len(), 1);
         assert_eq!(outcome.exit_code(), 0);
+    }
+
+    #[test]
+    fn zero_evidence_refuses_at_the_first_gate_as_data() {
+        let workflow = first_workflow();
+        let outcome = Pipeline::new(&workflow).run(0).expect("runs");
+        assert!(outcome.refused());
+        assert!(outcome.halted);
+        // Halts at the first gated stage (study), so exactly one refusal.
+        assert_eq!(outcome.refusals().len(), 1);
+        assert_eq!(outcome.refusals()[0].code, "no-evidence");
+        // Info-level refusal => exit 0, and no artifact was emitted.
+        assert_eq!(outcome.exit_code(), 0);
+        assert!(outcome.artifacts.is_empty());
+    }
+
+    #[test]
+    fn grounded_evidence_clears_every_gate() {
+        let workflow = first_workflow();
+        let outcome = Pipeline::new(&workflow).run(3).expect("runs");
+        assert!(!outcome.refused());
+        assert!(!outcome.halted);
+        assert_eq!(outcome.artifacts.len(), 1);
+        assert_eq!(outcome.exit_code(), 0);
+    }
+
+    #[test]
+    fn propose_is_refused_without_a_cleared_research_gate() {
+        // A first gated stage that proposes, with no research gate before it,
+        // must refuse to propose even when evidence is present.
+        let stage = Stage {
+            id: "tools".into(),
+            kind: StageKind::Tools,
+            title: "Arm the agent".into(),
+            gate: Some(Gate::Propose),
+        };
+        let verdict = GateRules::with_evidence(5).evaluate(&stage, &[]);
+        assert!(matches!(verdict, RuleVerdict::Refuse(_)));
     }
 
     #[test]

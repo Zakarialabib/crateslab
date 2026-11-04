@@ -75,7 +75,7 @@ pub const INTERNAL_ERROR: i32 = -32603;
 
 /// Route a request to a forge capability. Pure and deterministic.
 ///
-/// Methods: `forge.ping`, `forge.workflows`, `forge.tokenize`.
+/// Methods: `forge.ping`, `forge.workflows`, `forge.pipeline`, `forge.tokenize`.
 pub fn dispatch(request: &Request) -> Response {
     match request.method.as_str() {
         "forge.ping" => Response::ok(request.id, json!({ "pong": true })),
@@ -84,6 +84,8 @@ pub fn dispatch(request: &Request) -> Response {
             Ok(registry) => Response::ok(request.id, registry_json(&registry)),
             Err(error) => Response::err(request.id, INTERNAL_ERROR, error.to_string()),
         },
+
+        "forge.pipeline" => pipeline(&request.id, &request.params),
 
         "forge.tokenize" => match request.params.get("text").and_then(Value::as_str) {
             Some(text) => Response::ok(request.id, json!({ "tokens": tokenize(text) })),
@@ -95,6 +97,31 @@ pub fn dispatch(request: &Request) -> Response {
             METHOD_NOT_FOUND,
             format!("unknown method '{other}'"),
         ),
+    }
+}
+
+/// Run one authored workflow, gated on the grounded-evidence count.
+///
+/// Params: `{ "workflow": "<id>", "evidence": <usize, default 0> }`. A refusal
+/// is returned as data in `result` (the run still succeeds), never as `error`.
+fn pipeline(id: &u64, params: &Value) -> Response {
+    let registry = match forge_core::embedded() {
+        Ok(registry) => registry,
+        Err(error) => return Response::err(*id, INTERNAL_ERROR, error.to_string()),
+    };
+    let Some(workflow_id) = params.get("workflow").and_then(Value::as_str) else {
+        return Response::err(*id, INVALID_REQUEST, "missing string param 'workflow'");
+    };
+    let Some(workflow) = registry.get(workflow_id) else {
+        return Response::err(*id, INVALID_REQUEST, format!("unknown workflow '{workflow_id}'"));
+    };
+    let evidence = params
+        .get("evidence")
+        .and_then(Value::as_u64)
+        .unwrap_or(0) as usize;
+    match forge_core::Pipeline::new(workflow).run(evidence) {
+        Ok(outcome) => Response::ok(*id, json!(outcome)),
+        Err(error) => Response::err(*id, INTERNAL_ERROR, error.to_string()),
     }
 }
 
@@ -140,6 +167,30 @@ mod tests {
 
         let missing = dispatch(&request("forge.tokenize", json!({})));
         assert_eq!(missing.error.expect("error").code, INVALID_REQUEST);
+    }
+
+    #[test]
+    fn pipeline_refuses_without_evidence_and_clears_with_it() {
+        let refused = dispatch(&request(
+            "forge.pipeline",
+            json!({ "workflow": "cratelab-intern-evolution", "evidence": 0 }),
+        ));
+        let result = refused.result.expect("result");
+        assert_eq!(result["halted"], json!(true));
+        assert_eq!(result["runs"][0]["verdict"]["verdict"], json!("refuse"));
+
+        let passed = dispatch(&request(
+            "forge.pipeline",
+            json!({ "workflow": "cratelab-intern-evolution", "evidence": 4 }),
+        ));
+        let result = passed.result.expect("result");
+        assert_eq!(result["halted"], json!(false));
+    }
+
+    #[test]
+    fn pipeline_rejects_an_unknown_workflow() {
+        let response = dispatch(&request("forge.pipeline", json!({ "workflow": "nope" })));
+        assert_eq!(response.error.expect("error").code, INVALID_REQUEST);
     }
 
     #[test]
