@@ -1,8 +1,8 @@
 # cratelab
 
-**A local lab that turns published crates into testable, UI-generatable surfaces.**
+**A local lab that turns published crates into testable, UI-generatable surfaces, and an agentic forge that studies and evolves them — Rust and other languages — into better crates through gated, reviewable workflows.**
 
-**Documentation:** start at [docs/00-index.md](docs/00-index.md) — the numbered doc set covers the architecture, the manifest contract, the CLI, the Tauri shell, and the fleet.
+**Documentation:** start at [docs/00-index.md](docs/00-index.md) — the numbered doc set covers the architecture, the manifest contract, the CLI, the Tauri shell, and the forge.
 
 cratelab is a Rust workspace + Tauri v2 shell built around one idea: your
 workspaces (`tv-rs`, `cctv-rs`) already declare their command surface in
@@ -42,10 +42,12 @@ they sit on.
 | `lab-scenarios` | TOML playlists (steps, expects, polls, timeouts) + sandboxed Rhai generative steps. Produces step-level reports. |
 | `lab-coverage` | The coverage ledger: `(workspace, command, arg-bucket)` cells, heatmap rows, markdown/JSON reports. |
 | `lab-engine` | Discovery (local checkout / crates.io sparse index behind a feature), matching + drift, the runner, and the headless `lab` CLI. |
-| `shell/` | Tauri v2 app: manifest-driven panels, command console, timeline, coverage heatmap, scenario composer. Standalone workspace. |
-| `fleet/` | Crate-evolution control plane assets: tv-rs crate catalog dispatch, local batch queue, bounded provider router, RAG corpus builder, Modal search and CircleCI templates. |
+| `shell/` | Tauri v2 app: manifest-driven panels, command console, timeline, coverage heatmap, scenario composer, and the forge views. Standalone workspace. |
+| `forge-core` | The forge SDK: the single authored workflow registry, the deterministic seven-stage pipeline, gates, typed refusals and proposal artifacts, and provider ports. |
+| `forge-rag` | The forge retrieval plane: deterministic corpus ingest, a provenance-rich BM25 index, evidence packets, and scripted prompt rendering. |
+| `forge-sidecar` | The `forge-sidecar` stdio JSON-RPC binary that serves the registry / retrieval / pipeline to any host and declares remotes (Modal / Kaggle). |
 
-The Fleet screen and `fleet/` module are part of this cratelab project. Safe source/templates are tracked; `fleet/.env`, `fleet/state/`, `fleet/reports/`, and `fleet/data/` hold local credentials and generated artifacts and stay ignored. The pilot targets all crates in the local `tv-rs` workspace, triages three tasks per batch, and limits work to research/documentation. Provider calls require an explicit per-run confirmation; target and GitHub writes are not enabled.
+The forge screens and the `forge/` runtime home are part of this cratelab project. Safe source and templates are tracked inside the `crates/forge-*` crates; `forge/.env`, `forge/state/`, `forge/reports/`, and `forge/data/` hold local credentials and generated artifacts and stay ignored. The pilot targets all crates in the local `tv-rs` workspace, triages three tasks per batch, and limits work to research/documentation. Provider calls require an explicit per-run confirmation; target and GitHub writes are not enabled.
 
 ## Quick start
 

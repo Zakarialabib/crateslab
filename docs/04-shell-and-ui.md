@@ -6,7 +6,7 @@ The desktop shell that turns lab manifests into a live UI: a Tauri v2 Rust backe
 
 **Status:** live · **Last verified:** 2026-11-04 · **Related:** [00-index](00-index.md) · [01-architecture](01-architecture.md) · [02-manifest](02-manifest.md) · [03-cli-and-workflows](03-cli-and-workflows.md) · [05-ui-wireframes](05-ui-wireframes.md) · [06-crate-intelligence](06-crate-intelligence.md) · [12-operations](12-operations.md) · [architecture.html](architecture.html) · [lifecycle.html](lifecycle.html)
 
-The shell is `shell/`. It is a **standalone Cargo workspace** (`shell/src-tauri`) plus a Svelte webview (`shell/src`). The Rust side owns all state; the webview renders it. The shell does not embed the fleet logic — it calls the same `lab-engine` the CLI calls, and a local fleet subsystem documented in [07-fleet-overview](07-fleet-overview.md) through [12-operations](12-operations.md).
+The shell is `shell/`. It is a **standalone Cargo workspace** (`shell/src-tauri`) plus a Svelte webview (`shell/src`). The Rust side owns all state; the webview renders it. The shell does not embed the forge logic — it calls the same `lab-engine` the CLI calls, and the forge subsystem documented in [07-the-forge](07-the-forge.md) through [12-operations](12-operations.md).
 
 ## 1 · Stack at a glance
 
@@ -38,7 +38,7 @@ The effect: `cargo test --workspace` at the repo root stays green on a headless 
 
 ## 3 · The Rust / IPC side
 
-Source of truth: `shell/src-tauri/src/lib.rs` (plus `fleet_knowledge.rs` and `fleet_circleci.rs`).
+Source of truth: `shell/src-tauri/src/lib.rs` (plus `forge_knowledge.rs` and `forge_circleci.rs`).
 
 ### 3.1 One persistent `Lab`
 
@@ -46,25 +46,28 @@ Source of truth: `shell/src-tauri/src/lib.rs` (plus `fleet_knowledge.rs` and `fl
 pub struct LabState { lab: Mutex<Lab> }
 ```
 
-Module doc (verbatim intent): *one persistent `Lab` (mock fleet + manifests + coverage ledger) lives in managed state, so every command the UI runs is booked into the same heatmap. Hardware stays behind the explicit `set_backend` toggle — the same `CommandSink` port serves both.*
+Module doc (verbatim intent): *one persistent `Lab` (mock forge + manifests + coverage ledger) lives in managed state, so every command the UI runs is booked into the same heatmap. Hardware stays behind the explicit `set_backend` toggle — the same `CommandSink` port serves both.*
 
 - `run()` builds the lab once in `.setup()` via `build_lab(&manifests_dir())` and `app.manage(LabState { lab: Mutex::new(lab) })`.
 - `build_lab` = `load_all_manifests(dir)` → `MockFleet::from_manifests(...)` → `Lab::new(...)` → load each manifest. Every `run_command` / `run_scenario` books coverage into that single shared ledger.
 - `manifest_load_errors(dir)` is the one thing the shell must never hide: a manifest that fails to parse is surfaced (via `manifest_errors`), not silently skipped.
 
-### 3.2 Local fleet config helpers + the secret rule
+### 3.2 Local forge config helpers + the secret rule
+
+The forge's mutable runtime home is `forge/` (`forge_dir()` = the cratelab workspace root joined with `forge`); the read-only engine assets live inside the crates and are resolved through `engine_asset()` from the workspace root.
 
 | Helper | Behaviour |
 |---|---|
-| `fleet_dir()` | `CARGO_MANIFEST_DIR/../../fleet`, resolved **lexically** (pop on `ParentDir`) so UI paths are clean absolute paths, never `…\src-tauri\..\..\fleet`. |
-| `fleet_env_value(name)` | Reads the process env var first, else parses `fleet/.env` (strips a leading `export `, trims surrounding quotes). |
-| `FLEET_SETTINGS_KEYS: &[(&str, bool)]` | The ~35 allow-listed setting keys, each tagged `secret: bool`. `fleet_get_settings` / `fleet_save_settings` reject any key not in this list (`"unsupported setting: {key}"`). |
+| `forge_dir()` | The workspace root + `forge`, resolved **lexically** (pop on `ParentDir`) so UI paths are clean absolute paths, never `…\src-tauri\..\..\forge`. Holds `.env`, `state/`, `reports/`, `data/`. |
+| `engine_asset(relative)` | An asset that ships inside an engine crate, addressed from the workspace root — e.g. `crates/forge-core/forge.config.json`, `crates/forge-sidecar/ci/circleci/config.yml`. |
+| `forge_env_value(name)` | Reads the process env var first, else parses `forge/.env` (strips a leading `export `, trims surrounding quotes). |
+| `FORGE_SETTINGS_KEYS: &[(&str, bool)]` | The ~35 allow-listed setting keys, each tagged `secret: bool`. `forge_get_settings` / `forge_save_settings` reject any key not in this list (`"unsupported setting: {key}"`). |
 
 **The rule (module comment, verbatim):** *"Secrets are read only to test whether a variable is populated; values never leave Rust."*
 
-- `fleet_settings_snapshot()` returns `{ key, secret, configured, value, setup_url }`. For `secret: true` keys, `value` is **always `null`** — the UI only ever sees a boolean `configured`.
-- `MODAL_TOKEN_ID` / `MODAL_TOKEN_SECRET` are special-cased: "configured" means a local `fleet/.modal-config` profile file exists, not an env var.
-- `fleet_credential_guides()` reads `fleet/config.json` → `credential_guides` for "How to get" links.
+- `forge_settings_snapshot()` returns `{ key, secret, configured, value, setup_url }`. For `secret: true` keys, `value` is **always `null`** — the UI only ever sees a boolean `configured`.
+- `MODAL_TOKEN_ID` / `MODAL_TOKEN_SECRET` are special-cased: "configured" means a local `forge/.modal-config` profile file exists, not an env var.
+- `forge_credential_guides()` reads `crates/forge-core/forge.config.json` → `credential_guides` for "How to get" links.
 
 ### 3.3 `set_backend` — a typed refusal, not a TODO
 
@@ -102,30 +105,30 @@ Every function below is registered in `run()`'s `invoke_handler` (`tauri::genera
 | `manifest_errors` | Every manifest in the dir that failed to parse, as strings. |
 | `probe_url` | One honest HTTP probe for `url`-typed args (used by the form's **Test** button). |
 
-**Fleet commands (local control plane):**
+**Forge commands (the agentic evolution engine):**
 
 | Command | What it does |
 |---|---|
-| `fleet_status` | The readiness/summary object: providers, pilot crates, daily caps, `safe_mode`, runs. |
-| `fleet_select_repository` | Switches the active scope repository (shared by every fleet view). |
-| `fleet_select_provider` | Sets the active rung (explicit; no silent fallback). |
-| `fleet_select_model` | Sets the model on a rung (from its last probe's discovered IDs). |
-| `fleet_dry_run` | Prepares a **local** case packet (source evidence); no provider call. |
-| `fleet_probe_provider` | Cheap-GET credential check against a rung's identity/health endpoint. |
-| `fleet_get_settings` | Masked settings snapshot (secret values never returned). |
-| `fleet_save_settings` | Writes allow-listed keys; secrets are accepted but never returned. |
-| `fleet_run_tool` | Runs a local knowledge tool (build/validate index, HF/Modal/Kaggle actions). |
-| `fleet_circleci_dashboard` | Read-only CircleCI account/project/pipeline/workflow status. |
-| `fleet_reports` | Lists report files under `fleet/reports`. |
-| `fleet_read_report` | Reads one report's bytes (the viewer shows the file, unparaphrased). |
-| `fleet_open_report` | Reveals a report in the OS file manager (opener plugin). |
-| `fleet_dashboard` | Aggregates for the Dashboard view (runs by day/task, coverage, catalog). |
-| `fleet_crate_research_prompt` | Builds a context-engineered prompt pack for an internal crate. |
-| `fleet_search_crate_knowledge` | Queries the Modal crate-knowledge search endpoint. |
-| `fleet_preview_live` | Builds the outbound live-run preview (files, size, route, cost note). |
-| `fleet_generate_audit` | Runs the **confirmed** live audit and records the run. |
+| `forge_status` | The readiness/summary object: providers, pilot crates, daily caps, `safe_mode`, policy, runs. |
+| `forge_select_repository` | Switches the active scope repository (shared by every forge view). |
+| `forge_select_provider` | Sets the active rung (explicit; no silent fallback). |
+| `forge_select_model` | Sets the model on a rung (from its last probe's discovered IDs). |
+| `forge_dry_run` | Prepares a **local** case packet (source evidence); no provider call. |
+| `forge_probe_provider` | Cheap-GET credential check against a rung's identity/health endpoint. |
+| `forge_get_settings` | Masked settings snapshot (secret values never returned). |
+| `forge_save_settings` | Writes allow-listed keys; secrets are accepted but never returned. |
+| `forge_run_tool` | Runs a local knowledge tool (build/validate index, HF/Modal/Kaggle actions). |
+| `forge_circleci_dashboard` | Read-only CircleCI account/project/pipeline/workflow status. |
+| `forge_reports` | Lists report files under `forge/reports`. |
+| `forge_read_report` | Reads one report's bytes (the viewer shows the file, unparaphrased). |
+| `forge_open_report` | Reveals a report in the OS file manager (opener plugin). |
+| `forge_dashboard` | Aggregates for the Dashboard view (runs by day/task, coverage, catalog). |
+| `forge_crate_research_prompt` | Builds a context-engineered prompt pack for an internal crate. |
+| `forge_search_crate_knowledge` | Queries the Modal crate-knowledge search endpoint. |
+| `forge_preview_live` | Builds the outbound live-run preview (files, size, route, cost note). |
+| `forge_generate_audit` | Runs the **confirmed** live audit and records the run. |
 
-`fleet_status().safe_mode` in the current build is `{ provider_calls: true, network: true, github_writes: false, target_writes: false }`; the pilot uses `batch_size: 3` over 8 task ids; the daily caps map covers `gemini`, `groq`, `cloudflare`, `openrouter`.
+`forge_status().safe_mode` in the current build is `{ provider_calls: true, network: true, github_writes: false, target_writes: false }`; the pilot uses `batch_size: 3` over 8 task ids; the daily caps map covers `gemini`, `groq`, `cloudflare`, `openrouter`.
 
 ## 5 · The generative UI core
 
@@ -159,11 +162,11 @@ Navigation is a grouped sidebar (`shell/src/App.svelte`): **Project** → Dashbo
 
 | View id | Label | Question it answers | Key components |
 |---|---|---|---|
-| `dashboard` | Dashboard | Is the fleet improving the crates, and what needs a human? | `DashboardView` |
-| `fleet` | Workflows | What runs now, and what will it cost? | `AutomationView` (tab `workflows`) → `FleetView` |
+| `dashboard` | Dashboard | Is the forge improving the crates, and what needs a human? | `DashboardView` |
+| `forge` | Workflows | What runs now, and what will it cost? | `AutomationView` (tab `workflows`) → `ForgeView` |
 | `ops-dashboard` | Integrations & scenarios | What integrations/scenarios are wired? | `AutomationView` (tab `integrations`) → `OpsDashboard` |
 | `reports` | Reports | What did we learn, and can I trust it? | `ReportsView` |
-| `fleet-settings` | Providers & credentials | Which free AI is usable right now? | `FleetSettings` |
+| `forge-settings` | Providers & credentials | Which free AI is usable right now? | `ForgeSettings` |
 | `commands` | Commands | What can this workspace do? | `CommandsView` → `CommandForm` → `ArgWidget` |
 | `events` | Events | What events does it emit? | inline event table (`App.svelte`) |
 | `servers` | Servers | What servers, ports and routes exist? | inline server cards (`App.svelte`) |
@@ -172,7 +175,7 @@ Navigation is a grouped sidebar (`shell/src/App.svelte`): **Project** → Dashbo
 | `scenarios` | Scenarios | Compose and run a playlist. | `ScenariosView` → `Timeline` |
 | `discovery` | Discovery | What is in a local checkout? | `DiscoveryView` |
 
-`TopHeader.svelte` is the persistent, always-visible header: brand, a **scope** `<select>` (repositories), the `[MOCK]`/`[LIVE]` env chip (`live = env !== "" && env !== "mock"`), a **readiness chip** `rungs {probed}/{providerTotal} probed` (click → Providers; tooltip: *"Configured and Probed are different claims"*), a section/view breadcrumb, and two actions (`Run ▾` quick-cases menu, `Reports`). Every number in the header comes from `fleet_status`.
+`TopHeader.svelte` is the persistent, always-visible header: brand, a **scope** `<select>` (repositories), the `[MOCK]`/`[LIVE]` env chip (`live = env !== "" && env !== "mock"`), a **readiness chip** `rungs {probed}/{providerTotal} probed` (click → Providers; tooltip: *"Configured and Probed are different claims"*), a section/view breadcrumb, and two actions (`Run ▾` quick-cases menu, `Reports`). Every number in the header comes from `forge_status`.
 
 > Brand-case note: `TopHeader.svelte` currently renders `cratesLab` in the header markup. The product brand is `cratelab`; this document and the rest of the docs set use `cratelab`.
 
@@ -208,19 +211,19 @@ flowchart TB
 | `run_scenario_executes_the_authored_playlist` | `tv-morning-loop` runs, 5 steps pass. |
 | `discover_local_reports_inherited_versions` | ≥7 members, no `0.0.0` versions, `lab-engine` reports `0.1.0`. |
 
-## 9 · Fleet IPC modules
+## 9 · Forge IPC modules
 
-### 9.1 `fleet_knowledge.rs` — corpus + third-party orchestration
+### 9.1 `forge_knowledge.rs` — corpus + third-party orchestration
 
-Doc intent: the desktop control plane is Rust; the only Python runtime is Modal's **deployed** ASGI service. It owns: `build_signage_index`, `validate_signage_index`, `build_crate_intelligence_index`, `validate_crate_intelligence_index`, `crate_research_prompt`, `search_crate_intelligence`, `check_hf_token`, `upload_signage_index`, `upload_crate_intelligence_index`, `deploy_crate_intelligence_search`, `check_crate_intelligence_search`, `kaggle_crate_intelligence_status`, `submit_kaggle_crate_intelligence`, `deploy_modal_search`, plus CLI-availability probes `hf_cli_available` / `kaggle_cli_available`. Corpus safety uses `SKIP_PARTS`, `FORBIDDEN_NAMES`, and `patterns()` credential regexes so secret-like source is excluded from any index. See [06-crate-intelligence](06-crate-intelligence.md) and [09-fleet-rag](09-fleet-rag.md).
+Doc intent: the desktop engine is Rust; the only Python runtime is Modal's **deployed** ASGI service. It owns: `build_signage_index`, `validate_signage_index`, `build_crate_intelligence_index`, `validate_crate_intelligence_index`, `crate_research_prompt`, `search_crate_intelligence`, `check_hf_token`, `upload_signage_index`, `upload_crate_intelligence_index`, `deploy_crate_intelligence_search`, `check_crate_intelligence_search`, `kaggle_crate_intelligence_status`, `submit_kaggle_crate_intelligence`, `deploy_modal_search`, plus CLI-availability probes `hf_cli_available` / `kaggle_cli_available`. Corpus safety uses `SKIP_PARTS`, `FORBIDDEN_NAMES`, and `patterns()` credential regexes so secret-like source is excluded from any index. See [06-crate-intelligence](06-crate-intelligence.md) and [10-knowledge-base-and-retrieval](10-knowledge-base-and-retrieval.md).
 
-### 9.2 `fleet_circleci.rs` — read-only CI
+### 9.2 `forge_circleci.rs` — read-only CI
 
-Doc intent (verbatim gist): *"only issues CircleCI API GET requests… never starts a pipeline, edits project settings, or writes repository files."* CircleCI API v2, `MAX_PROJECTS = 12`, GET `/me`, `/me/collaborations`, `/project/{slug}`, `/project/{slug}/pipeline`, `/pipeline/{id}/workflow`. Entry point: `dashboard(token, configured_slugs, fleet_dir)`.
+Doc intent (verbatim gist): *"only issues CircleCI API GET requests… never starts a pipeline, edits project settings, or writes repository files."* CircleCI API v2, `MAX_PROJECTS = 12`, GET `/me`, `/me/collaborations`, `/project/{slug}`, `/project/{slug}/pipeline`, `/pipeline/{id}/workflow`. Entry point: `dashboard(token, configured_slugs, forge_dir, template_path)`, where `template_path` is the crate-hosted engine asset `crates/forge-sidecar/ci/circleci/config.yml`.
 
 ## Consolidation notes
 
 - **Corrected the stale `shell/README.md`** for React→Svelte 5 and npm→Bun: `.svelte` components, `mount()` in `main.ts`, `ArgWidget.svelte` (not `widgets.tsx`), `bun run dev/build`.
 - **Brand normalised to `cratelab`** (lowercase); the header markup's `cratesLab` is noted, not repeated.
-- **Fleet tooling split out**: this file keeps only the *shell/IPC surface* of the fleet subsystem; providers, RAG, workflows and operations live in [07](07-fleet-overview.md)–[12](12-operations.md).
+- **Renamed the fleet surface to the forge**: the `fleet_*` commands are now `forge_*`, `FleetView`/`FleetSettings` are `ForgeView`/`ForgeSettings`, `fleet_knowledge.rs`/`fleet_circleci.rs` are `forge_knowledge.rs`/`forge_circleci.rs`, the runtime home is `forge/`, and the read-only assets live inside the `crates/forge-*` crates. This file keeps only the *shell/IPC surface*; providers, RAG, workflows and operations live in [07](07-the-forge.md)–[12](12-operations.md).
 - Verified against `shell/src-tauri/src/lib.rs`, `shell/src/**`, `shell/src-tauri/Cargo.toml`, `tauri.conf.json`, `package.json`, and `tests/ipc_engine.rs` on 2026-11-04.

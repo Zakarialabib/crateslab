@@ -4,7 +4,7 @@ The single entry point to the cratelab documentation set: what cratelab is, how 
 
 > **cratelab docs** · SPDX `MIT` · security: this file must never contain credentials, tokens, private-repo content, or absolute user paths.
 
-**Status:** reference · **Last verified:** 2026-11-04 · **Related:** [01-architecture](01-architecture.md), [02-manifest](02-manifest.md), [07-fleet-overview](07-fleet-overview.md), [13-roadmap](13-roadmap.md)
+**Status:** reference · **Last verified:** 2026-11-04 · **Related:** [01-architecture](01-architecture.md), [02-manifest](02-manifest.md), [07-the-forge](07-the-forge.md), [13-roadmap](13-roadmap.md)
 
 ## 1. What cratelab is
 
@@ -14,10 +14,10 @@ There are **two planes** in this repository, and the documentation keeps them se
 
 | Plane | What it is | Where it lives | Docs |
 |---|---|---|---|
-| **The crate bench** | The local, offline test-lab: manifests, mock fleet, scenarios, coverage, conformance, and the headless `lab` CLI. | `crates/lab-*`, `shell/` | [01](01-architecture.md)–[06](06-crate-intelligence.md) |
-| **The fleet** | A separate control plane of free AI provider rungs that analyses, documents and researches the *target* crates, and never writes features. | `fleet/`, shell fleet views | [07](07-fleet-overview.md)–[12](12-operations.md) |
+| **The crate bench** | The local, offline test-lab: manifests, the mock device fleet (`lab-mocks::MockFleet`), scenarios, coverage, conformance, and the headless `lab` CLI. | `crates/lab-*`, `shell/` | [01](01-architecture.md)–[06](06-crate-intelligence.md) |
+| **The forge** | The renamed, unified agentic crate-evolution subsystem: it studies sources, builds a knowledge base, retrieves grounded evidence, renders scripted prompts, and emits reviewable evolution proposals. It replaces the old scattered `fleet/` control plane and never writes features unattended. | `crates/forge-*`, runtime home `forge/`, shell forge views | [07](07-the-forge.md)–[12](12-operations.md) |
 
-The bench produces evidence; the fleet reads that evidence and produces reviewable proposals. A human disposes every proposal. [01-architecture](01-architecture.md) shows how the two connect.
+The bench produces evidence; the forge reads that evidence and produces reviewable proposals. A human disposes every proposal. [01-architecture](01-architecture.md) shows how the two connect.
 
 ## 2. The doc set at a glance
 
@@ -27,14 +27,14 @@ The bench produces evidence; the fleet reads that evidence and produces reviewab
 | 01 | [Architecture](01-architecture.md) | reference | The whole system: the two planes, the manifest spine, the invariants. |
 | 02 | [The manifest contract](02-manifest.md) | reference | The authoritative manifest schema, validation rules and worked excerpts. |
 | 03 | [CLI, scenarios, conformance, coverage](03-cli-and-workflows.md) | live | Every `lab` subcommand, the scenario format, conformance tiers, the coverage ledger. |
-| 04 | [The shell: Tauri + Svelte](04-shell-and-ui.md) | live | The desktop app: IPC surface, manifest-derived UI, the fleet screens. |
-| 05 | [UI design spec](05-ui-wireframes.md) | design | The quota-first wireframes and design principles for the fleet UI. |
+| 04 | [The shell: Tauri + Svelte](04-shell-and-ui.md) | live | The desktop app: IPC surface, manifest-derived UI, the forge screens. |
+| 05 | [UI design spec](05-ui-wireframes.md) | design | The quota-first wireframes and design principles for the forge UI. |
 | 06 | [Internal crate architecture map](06-crate-intelligence.md) | reference | The verified dependency + responsibility map of cratelab's own crates. |
-| 07 | [Fleet overview](07-fleet-overview.md) | reference | What the fleet is: rungs, roles, proposer/disposer separation, governance. |
-| 08 | [Fleet providers](08-fleet-providers.md) | live | One section per provider rung: capabilities, free-tier limits, credential guides. |
-| 09 | [Fleet RAG](09-fleet-rag.md) | reference | Retrieval design: knowledge sources, indexing, retrieval, provenance. |
-| 10 | [Fleet workflows](10-fleet-workflows.md) | reference | The end-to-end work cycles and where each output lands. |
-| 11 | [Model capacity](11-model-capacity.md) | reference | Which models fit which free hardware; quantization and VRAM math. |
+| 07 | [The forge](07-the-forge.md) | reference | What the forge is: domains, the factory model, proposer/disposer separation, governance. |
+| 08 | [Forge SDK and sidecar](08-forge-sdk-and-sidecar.md) | live | The `forge-core` / `forge-rag` / `forge-sidecar` crates and the stdio JSON-RPC surface. |
+| 09 | [The workflow model](09-the-workflow-model.md) | reference | The seven-stage spine, the three gates, and the embedded workflow registry. |
+| 10 | [Knowledge base and retrieval](10-knowledge-base-and-retrieval.md) | reference | Ingest, the BM25 index, evidence packets, and scripted prompt rendering. |
+| 11 | [Providers and capacity](11-providers-and-capacity.md) | reference | Provider ports, free-tier rungs, and which models fit which free hardware. |
 | 12 | [Operations](12-operations.md) | live | Day-to-day running: env, credentials, MOCK vs LIVE, quota safety, field test. |
 | 13 | [Roadmap](13-roadmap.md) | design | Open findings, the ten concept specs, and the phased plan. |
 
@@ -49,8 +49,8 @@ The bench produces evidence; the fleet reads that evidence and produces reviewab
 - **Newcomer / evaluator** → [01-architecture](01-architecture.md) → [02-manifest](02-manifest.md) → [06-crate-intelligence](06-crate-intelligence.md) → [13-roadmap](13-roadmap.md).
 - **Running the bench** → [03-cli-and-workflows](03-cli-and-workflows.md) → [02-manifest](02-manifest.md) → [04-shell-and-ui](04-shell-and-ui.md).
 - **Building a frontend** → [04-shell-and-ui](04-shell-and-ui.md) → [05-ui-wireframes](05-ui-wireframes.md) → [02-manifest](02-manifest.md).
-- **Operating the fleet** → [07-fleet-overview](07-fleet-overview.md) → [08-fleet-providers](08-fleet-providers.md) → [12-operations](12-operations.md) → [10-fleet-workflows](10-fleet-workflows.md).
-- **Planning work** → [13-roadmap](13-roadmap.md) → [06-crate-intelligence](06-crate-intelligence.md) → [11-model-capacity](11-model-capacity.md).
+- **Operating the forge** → [07-the-forge](07-the-forge.md) → [08-forge-sdk-and-sidecar](08-forge-sdk-and-sidecar.md) → [12-operations](12-operations.md) → [09-the-workflow-model](09-the-workflow-model.md).
+- **Planning work** → [13-roadmap](13-roadmap.md) → [06-crate-intelligence](06-crate-intelligence.md) → [11-providers-and-capacity](11-providers-and-capacity.md).
 
 ## 4. Diagram and asset sources
 
@@ -67,7 +67,7 @@ Diagrams that predate this set are kept as sources next to the docs and referenc
 
 Every document in this set follows the same rules:
 
-- **Brand.** The project is always **`cratelab`** (lowercase). The AI provider subsystem is always **the fleet**. The legacy mixed-case forms are retired.
+- **Brand.** The project is always **`cratelab`** (lowercase). The agentic crate-evolution subsystem is always **the forge** (it replaced the former "fleet" control plane; the lab's unrelated mock *device* fleet is still `lab-mocks::MockFleet`). The legacy mixed-case forms are retired.
 - **Header.** Each file opens with `# NN · Title`, a one-sentence purpose, a security blockquote, and a metadata line (`Status` · `Last verified` · `Related`).
 - **Verify only what is in the repo.** Claims that cannot be traced to a file in this repository are marked as design or dropped. Live provider quotas are account-specific and labelled as source claims, not assertions.
 - **Security.** No document may contain credentials, tokens, private-repository content, or absolute user paths. Credentials are referenced **by name only**.
@@ -76,6 +76,7 @@ Every document in this set follows the same rules:
 ## 6. Consolidation notes
 
 - This set **replaces** the earlier, overlapping document collection: the playbook, technical-implementation build sheet, research notes, execution plan, standalone concept plan, and the loose `specs/` files are merged into the numbered documents above and are no longer maintained separately.
-- The two subsystems (crate bench and fleet) were previously documented under one undifferentiated pile; they are now split cleanly at 06/07.
+- The two subsystems (crate bench and forge) were previously documented under one undifferentiated pile; they are now split cleanly at 06/07.
+- **The fleet became the forge.** The scattered `fleet/` control plane was replaced by the unified `crates/forge-*` engine; the provider subsystem is now always called **the forge**, its runtime home is `forge/`, and the old `07-fleet-overview` … `11-model-capacity` filenames no longer exist (see [07-the-forge](07-the-forge.md)). The lab's `lab-mocks::MockFleet` keeps its name — it is a mock *device* fleet, unrelated to this rename.
 - Superseded naming (`cratesLab` / `crateslab`), stale stack references (React/npm), and dead helper scripts were dropped in favour of the verified current state (Svelte 5 / Bun, Tauri v2).
 - Stale factual claims found during consolidation were corrected against the code (the crate dependency graph, the Bonsai capacity mapping, the tracker of open review findings) rather than carried forward.

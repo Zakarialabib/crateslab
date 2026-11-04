@@ -4,7 +4,7 @@ The design rules and per-screen wireframes for the cratelab shell, and how far t
 
 > **cratelab docs** · SPDX `MIT` · security: this file must never contain credentials, tokens, private-repo content, or absolute user paths.
 
-**Status:** design · **Last verified:** 2026-11-04 · **Related:** [00-index](00-index.md) · [04-shell-and-ui](04-shell-and-ui.md) · [10-fleet-workflows](10-fleet-workflows.md) · [11-model-capacity](11-model-capacity.md) · [12-operations](12-operations.md) · [architecture.html](architecture.html) · [architecture.png](architecture.png)
+**Status:** design · **Last verified:** 2026-11-04 · **Related:** [00-index](00-index.md) · [04-shell-and-ui](04-shell-and-ui.md) · [09-the-workflow-model](09-the-workflow-model.md) · [11-providers-and-capacity](11-providers-and-capacity.md) · [12-operations](12-operations.md) · [architecture.html](architecture.html) · [architecture.png](architecture.png)
 
 This document is the **quota-first** redesign of the earlier wireframes and supersedes both prior versions (see [Consolidation notes](#consolidation-notes)). Each wireframe carries a status tag: **[implemented]** (matches a shipped component — see [04-shell-and-ui](04-shell-and-ui.md) for the component map), **[partial]**, or **[proposed]** (design only, nothing in `shell/src` yet). Medium is ASCII / HTML+CSS with CSS bars — **no chart library, no framework** required for the wireframes themselves.
 
@@ -51,15 +51,15 @@ This document is the **quota-first** redesign of the earlier wireframes and supe
 | nav | grouped sidebar with per-item counters (`Workflows 3 crates`, `Integrations 7 configured`, `Reports 9 runs`, `Providers 7/16`) | `App.svelte` `navCounts` |
 | actions | `Run ▾` (up to 5 quick cases + "Open case workbench"), `Reports` | `TopHeader.svelte` |
 
-> Design note vs the earlier spec: the readiness chip counts **`fleet_status().providers.length`** rows (currently 16 rungs: `gemini, groq, cloudflare, nvidia, openrouter, zhipu, colab-bonsai, kaggle-bonsai, huggingface, kaggle, modal, qdrant, circleci, github-read, allam, modelscope`), **not** the "10 rungs" the first draft assumed. An earlier draft also proposed a plain row-nav; the shipped shell uses the grouped sidebar above.
+> Design note vs the earlier spec: the readiness chip counts **`forge_status().providers.length`** rows (currently 16 rungs: `gemini, groq, cloudflare, nvidia, openrouter, zhipu, colab-bonsai, kaggle-bonsai, huggingface, kaggle, modal, qdrant, circleci, github-read, allam, modelscope`), **not** the "10 rungs" the first draft assumed. An earlier draft also proposed a plain row-nav; the shipped shell uses the grouped sidebar above.
 
-## 3 · Dashboard — "Is the fleet improving the crates, and what needs me?"
+## 3 · Dashboard — "Is the forge improving the crates, and what needs me?"
 
 **[implemented — `DashboardView.svelte`, eyebrow `CRATELAB · PROJECT STATE & EVOLUTION`]**
 
 ```
 ┌─ CRATELAB · PROJECT STATE & EVOLUTION ───────────────────────── [Open reports] ┐
-│ Is the fleet improving the tv-rs crates, and what needs a human?               │
+│ Is the forge improving the tv-rs crates, and what needs a human?               │
 ├─ METRICS (every card links to its surface) ───────────────────────────────────┤
 │ Evidence runs 12 │ Reports produced 9 │ Providers ready 7/16 │ Target: tv-rs    │
 ├─ BUDGETS TODAY · FREE TIERS ────────┬─ EVOLUTION · RUNS PER DAY (UTC) ─────────┤
@@ -80,13 +80,13 @@ This document is the **quota-first** redesign of the earlier wireframes and supe
 
 Rules the code enforces: budgets lead and come from the engine ledger (`usage.requests` × `daily_caps`); an **unknown cap renders `—`, never a guess** (`cap=null` → `"—"`); `spend €0.00 (always)` is a literal invariant row, not a statistic; every metric card navigates on click.
 
-**Deltas from the earlier draft:** the shipped Dashboard has no "NEEDS YOU" slot (PR-merge / failed-run), its workload mix is keyed by **task** (not class A–E), and the fleet panel is a **crate catalog** for the selected repository instead of a public-repo list. Those remain proposals — see §4.
+**Deltas from the earlier draft:** the shipped Dashboard has no "NEEDS YOU" slot (PR-merge / failed-run), its workload mix is keyed by **task** (not class A–E), and the forge panel is a **crate catalog** for the selected repository instead of a public-repo list. Those remain proposals — see §4.
 
 ## 4 · Queue — "What needs my judgment?"
 
 **[proposed — no Queue view exists in `App.svelte`]**
 
-The closest shipped thing is a **local staged case queue**: `FleetView` stages up to `batch_size` (3) crate/task pairs into `localStorage["cratelab-fleet-queue"]` ("Stage next batch of 3"), and `OpsDashboard` stages research/rustdoc batches into the same key. There is **no** merge / reject / failed-run queue, no diff review, and no one-click "retry on another rung".
+The closest shipped thing is a **local staged case queue**: `ForgeView` stages up to `batch_size` (3) crate/task pairs into `localStorage["cratelab-forge-queue"]` ("Stage next batch of 3"), and `OpsDashboard` stages research/rustdoc batches into the same key. There is **no** merge / reject / failed-run queue, no diff review, and no one-click "retry on another rung".
 
 ```
 ┌─ AWAITING MERGE (3) ─────────────────────────────────────────────────────────┐
@@ -105,7 +105,7 @@ Rule: every PR card carries the full provenance line (rung · model · RAG versi
 
 ## 5 · Workbench — "What runs now, and what will it cost?"
 
-**[implemented — `FleetView.svelte`, eyebrow `LOCAL CONTROL PLANE`]**
+**[implemented — `ForgeView.svelte`, eyebrow `LOCAL CONTROL PLANE`]**
 
 ```
 ┌─ CASE WORKBENCH ───────────────────────────────────────────── [DRY RUN DEFAULT]┐
@@ -138,7 +138,7 @@ Rules the code enforces: **local evidence is collected before any provider call*
 
 **[proposed — no Research view exists]**
 
-The capability exists as the workflow `cross-language-research` in `shell/src/fleet-workflows.ts` (7 steps: *Pick a capability · Find comparable SDKs · Extract the excellent parts · Diff against the crate · Write adoption notes · Capture learning*), selectable from the Workbench's Task dropdown. There is **no** dedicated shortlist / scorecard / adoption-notes screen. The method and rubric live in [10-fleet-workflows](10-fleet-workflows.md) and the source spec `docs/specs/cross-language-research.md`.
+The capability exists as the workflow `cross-language-research` in `shell/src/forge-workflows.ts` (7 steps: *Pick a capability · Find comparable SDKs · Extract the excellent parts · Diff against the crate · Write adoption notes · Capture learning*), selectable from the Workbench's Task dropdown. There is **no** dedicated shortlist / scorecard / adoption-notes screen. The method and rubric are the workflow's own steps in `shell/src/forge-workflows.ts`, under the workflow model in [09-the-workflow-model](09-the-workflow-model.md).
 
 ```
 ┌─ CAPABILITY ─────────────────────────────────────────────────────────────────┐
@@ -161,7 +161,7 @@ The capability exists as the workflow `cross-language-research` in `shell/src/fl
 │ Filter [ repo, crate, task, kind… ]                                          │
 ├─ LIST ─────────────────────────────────┬─ VIEWER ────────────────────────────┤
 │ dry-run-tv-rs-discovery-…md            │ dry-run-…md                        │
-│  [tv-rs] [rustdoc-audit] [dry]         │ …/fleet/reports/…                  │
+│  [tv-rs] [rustdoc-audit] [dry]         │ …/forge/reports/…                  │
 │  modified · 12 KB                      │ [Reveal in Explorer]              │
 │ provider-audit-….md  [tv-rs][live]     │ <file bytes, unparaphrased>        │
 └────────────────────────────────────────┴────────────────────────────────────┘
@@ -171,11 +171,11 @@ The viewer shows the **file bytes**, not a paraphrase. Implemented: filter, list
 
 ## 8 · Providers — "Which free AI is usable right now?"
 
-**[implemented — `FleetSettings.svelte` (credentials) + `OpsDashboard` "Rungs · one row each" table]**
+**[implemented — `ForgeSettings.svelte` (credentials) + `OpsDashboard` "Rungs · one row each" table]**
 
 ```
 ┌─ FREE-TIER RUNGS · LOCAL CREDENTIALS ─────────────────── [Save settings] ─────┐
-│ Local settings file  …/fleet/.env   9/24 set · status only, values never shown │
+│ Local settings file  …/forge/.env   9/24 set · status only, values never shown │
 ├─ Inference providers ─────────────────────────────────────────────────────────┤
 │ Gemini Api Key   Configured · Probed ✓   ••••••••  [Probe]  [How to get ↗]     │
 │ Groq Api Key     Configured · unprobed   ••••••••  [Probe]  [How to get ↗]     │
@@ -187,24 +187,24 @@ The viewer shows the **file bytes**, not a paraphrase. Implemented: filter, list
 │ Cloudflare …        Probed ✓    1 / 10       Inference+emb   [Recheck]         │
 ├─ LOCAL ACTIONS ───────────────────────────────────────────────────────────────┤
 │ [Build index] [Validate index] [Check HF access] [Review upload] [Deploy] …   │
-└───────────────────────────── Secrets stay local in fleet/.env · spend €0.00 ──┘
+└───────────────────────────── Secrets stay local in forge/.env · spend €0.00 ──┘
 ```
 
-States rendered: `Probed ✓` (cheap GET passed) · `Configured · unprobed` (key present — amber) · `Probe failed` · `Missing` (with setup link). `[Probe]` is **always a cheap GET** to a rung's identity/health endpoint — never a spend endpoint (`fleet_probe_spec`; OpenRouter is filtered to `:free`). Secrets render only as `••••••••`; the input placeholder says *"Enter locally; never shown again"*, and the save path returns *"Secret values were not returned to the UI."* Upload/deploy are separate confirmed external actions.
+States rendered: `Probed ✓` (cheap GET passed) · `Configured · unprobed` (key present — amber) · `Probe failed` · `Missing` (with setup link). `[Probe]` is **always a cheap GET** to a rung's identity/health endpoint — never a spend endpoint (`forge_probe_spec`; OpenRouter is filtered to `:free`). Secrets render only as `••••••••`; the input placeholder says *"Enter locally; never shown again"*, and the save path returns *"Secret values were not returned to the UI."* Upload/deploy are separate confirmed external actions.
 
 > Delta from the draft: the "today / reset clock" columns come from the engine (`usage.requests`, `daily_caps`); an unknown cap shows `—`. Per-rung reset clocks are **proposed**.
 
 ## 9 · Settings — "What is wired, and what is guarded?"
 
-**[partial]** — the shipped `FleetSettings` view is the credentials/rungs screen of §8 (env path, masked fields, local actions). The guardrail / cadence / archive panels below are **proposed**.
+**[partial]** — the shipped `ForgeSettings` view is the credentials/rungs screen of §8 (env path, masked fields, local actions). The guardrail / cadence / archive panels below are **proposed**.
 
 ```
 ┌─ SCOPE ──────────────────────────────────────────────────────────────────────┐
 │ public repos (7) …  ·  private (build consumers only, never in RAG)          │
-├─ GUARDRAILS (read-only, from fleet/config.json) ─────────────────────────────┤  [proposed]
+├─ GUARDRAILS (read-only, from forge.config.json) ─────────────────────────────┤  [proposed]
 │ forbidden paths: .git · target · .circleci · .github · secrets · Cargo.toml… │
 │ write rules: class C/D → issues only · every PR human-merged                 │
-├─ ENV FILE  …/fleet/.env ──────────────────────────────────────────────────────┤  [implemented – in §8]
+├─ ENV FILE  …/forge/.env ──────────────────────────────────────────────────────┤  [implemented – in §8]
 │ loaded ✓ · N set · missing keys marked                                        │
 ├─ CADENCE ─────────────────────────────────────────────────────────────────────┘  [proposed]
 │ heartbeat Mon 06:00 UTC · re-embed Sat · monthly sweep 1st                    │
@@ -249,7 +249,7 @@ These are the manifest-driven tool screens — the origin of the whole project �
 
 ## 11 · Bonsai model picker (corrected facts)
 
-The session serves the model — nothing is downloaded locally; the picker is driven by what `/models` reports plus a hardware hint. **Correction to the first draft: the 27B model does *not* need an A100.** Its ternary weights are 7.21 GB (PQ2_0), which fits a **free T4 15 GB** — that is the whole Colab plan. Full capacity analysis: [11-model-capacity](11-model-capacity.md).
+The session serves the model — nothing is downloaded locally; the picker is driven by what `/models` reports plus a hardware hint. **Correction to the first draft: the 27B model does *not* need an A100.** Its ternary weights are 7.21 GB (PQ2_0), which fits a **free T4 15 GB** — that is the whole Colab plan. Full capacity analysis: [11-providers-and-capacity](11-providers-and-capacity.md).
 
 | Session hardware | Pick | Why |
 |---|---|---|
@@ -269,23 +269,24 @@ Status: the tier data and helpers live in `shell/src/bonsai-models.ts` (`bonsaiT
 **[implemented unless tagged]**
 
 - A session starts `[MOCK]`; `[LIVE]` reflects a non-mock backend and runs are confirmed per request via the run-live modal.
-- Every empty state says why and links the fix (the code uses `fleet-lede` empty copy throughout); a `Missing` rung links `How to get ↗`.
+- Every empty state says why and links the fix (the code uses `forge-lede` empty copy throughout); a `Missing` rung links `How to get ↗`.
 - Status colours: green `--ok` = Probed ✓ · amber `--warn` = Configured-unprobed / near cap / circuit open · red `--bad` = failed gate or exhausted budget · grey = Missing (`styles.css`; `provider-state` classes `state-ready` / `state-pending` / `state-failed`).
 - Monospace for ids, paths and hashes; tabular numerals.
-- The UI **reads** state (ledger, settings) and never holds secrets: credentials live only in `fleet/.env`; secret values are `null` over IPC. **[implemented]**
+- The UI **reads** state (ledger, settings) and never holds secrets: credentials live only in `forge/.env`; secret values are `null` over IPC. **[implemented]**
 - Bars are plain `<div>`s (`.evo-bar`); **no chart library**. **[implemented]**
 - Keyboard-first screen jumps (`g d / g q / g w / g r / g p / g s`) and `/`-to-filter. **[proposed]**
 
 ## 13 · Build order (smallest useful thing first)
 
-1. Shell + Dashboard (reads the ledger) — the fleet becomes observable on day 1. **[done]**
+1. Shell + Dashboard (reads the ledger) — the forge becomes observable on day 1. **[done]**
 2. Queue + Providers — judgment and readiness. **[Providers done; Queue proposed]**
 3. Workbench with cost review — the daily driver. **[done]**
 4. Reports + Research — after the first cross-language cycle exists. **[Reports done; Research proposed]**
 
 ## Consolidation notes
 
+- **Renamed the fleet surface to the forge.** The provider/evolution subsystem this file describes is now **the forge**: `FleetView`/`FleetSettings` are `ForgeView`/`ForgeSettings`, the queue key is `cratelab-forge-queue`, the empty-state class is `forge-lede`, the probe helper is `forge_probe_spec`, the runtime home is `forge/` (reports and `.env` live under `forge/`), and the workflow templates live in `shell/src/forge-workflows.ts`. The lab's unrelated mock *device* fleet (`MockFleet`) keeps its name.
 - **Merges UI wireframes v1 and v2.** The v2 quota-first framing (budgets lead; judgment is the product; nothing costs silently) **supersedes v1's** vanity-count / breadcrumb-only model; v1's keep-worthy parts (env chip, dry-run default, explicit provider, per-credential Probe, "How to get" links, hardware-hinted Bonsai picker, CSS bars, "every number is a link") are retained.
-- **Corrected the Bonsai fact**: 27B PQ2_0 = 7.21 GB fits a free T4 — the old "27B needs an A100" statement is dropped. Note the source spec `docs/specs/colab-model-capacity.md` §5.5 still describes the *pre-correction* code mapping and is now itself stale: `shell/src/bonsai-models.ts` already maps `T4 → 27B fits`.
+- **Corrected the Bonsai fact**: 27B PQ2_0 = 7.21 GB fits a free T4 — the old "27B needs an A100" statement is dropped. The capacity numbers now live in [11-providers-and-capacity](11-providers-and-capacity.md), and `shell/src/bonsai-models.ts` already maps `T4 → 27B fits`.
 - **Brand normalised to `cratelab`** (lowercase) throughout; the `cratesLab` spelling in the source spec and in `TopHeader.svelte`'s markup is not repeated.
 - **Aspirational vs implemented** is tagged per screen; the honest gaps are: no Queue view, no Research view, no cost-preview panel (folded into the run-live modal), no provenance/verification block in Reports, Settings guardrails/cadence panels, Discovery drift, keyboard shortcuts, and the Bonsai picker not yet wired to a view.

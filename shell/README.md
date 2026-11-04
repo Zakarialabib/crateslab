@@ -45,7 +45,7 @@ src/                       Svelte 5 (runes) + TypeScript UI
   App.svelte               view router / shell chrome
   api.ts                   typed wrappers over the Tauri IPC commands
   types.ts                 shared types mirroring the Rust payloads
-  fleet-workflows.ts       fleet workflow templates
+  forge-workflows.ts       forge workflow templates
   bonsai-models.ts         Bonsai model ↔ free-hardware mapping
   components/
     ArgWidget.svelte       arg type → widget table (the generative-UI core)
@@ -53,17 +53,17 @@ src/                       Svelte 5 (runes) + TypeScript UI
     Timeline.svelte        scenario report timeline
     CoverageHeatmap.svelte coverage heatmap
     *View.svelte           dashboard · commands · coverage · scenarios ·
-                           discovery · fleet · reports · automation
+                           discovery · forge · reports · automation
 src-tauri/                 Rust side: one persistent Lab in managed state
   src/lib.rs               commands: workspaces · manifest_detail · run_command ·
                            run_scenario · coverage · discover_local · set_backend
-  src/fleet_knowledge.rs   fleet knowledge / RAG IPC surface
-  src/fleet_circleci.rs    CircleCI IPC surface
+  src/forge_knowledge.rs   forge knowledge / RAG IPC surface
+  src/forge_circleci.rs    CircleCI IPC surface
   tests/ipc_engine.rs      headless integration test over the real build_lab wiring
 ```
 
 The hardware toggle (`set_backend`) intentionally answers with a typed
 `capability` refusal until the real `CommandSink` adapter over `TvClient` /
 the cctv facade lands (v0.2). The device backend is `mock` in the current
-build; provider-backed fleet analysis is a separate, explicitly confirmed
+build; provider-backed forge analysis is a separate, explicitly confirmed
 switch — see [`../docs/12-operations.md`](../docs/12-operations.md).

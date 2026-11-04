@@ -1,13 +1,13 @@
 # 06 · Internal crate architecture map
-The source-traced dependency and responsibility map of cratelab's own crates, for both humans and the fleet's research prompts.
+The source-traced dependency and responsibility map of cratelab's own crates, for both humans and the forge's research prompts.
 
 > **cratelab docs** · SPDX `MIT` · security: this file must never contain credentials, tokens, private-repo content, or absolute user paths.
 
-**Status:** reference · **Last verified:** 2026-11-04 · **Related:** [00-index](00-index.md) · [01-architecture](01-architecture.md) · [02-manifest](02-manifest.md) · [03-cli-and-workflows](03-cli-and-workflows.md) · [07-fleet-overview](07-fleet-overview.md) · [09-fleet-rag](09-fleet-rag.md) · [architecture.html](architecture.html)
+**Status:** reference · **Last verified:** 2026-11-04 · **Related:** [00-index](00-index.md) · [01-architecture](01-architecture.md) · [02-manifest](02-manifest.md) · [03-cli-and-workflows](03-cli-and-workflows.md) · [07-the-forge](07-the-forge.md) · [10-knowledge-base-and-retrieval](10-knowledge-base-and-retrieval.md) · [architecture.html](architecture.html)
 
 ## 1. Scope
 
-This map covers the eight crates that make up the lab core. It is derived from the workspace `Cargo.toml`, each `crates/*/Cargo.toml` dependency block, and the `use` statements and public APIs in `crates/*/src/lib.rs`. It describes cratelab's own test-lab implementation; it does **not** describe the separate `tv-rs` / `cctv-rs` target workspaces the lab tests. The Tauri shell (`shell/`) is deliberately outside the workspace (see §6).
+This map covers the eight crates that make up the lab core, plus the three `forge-*` engine crates. It is derived from the workspace `Cargo.toml`, each `crates/*/Cargo.toml` dependency block, and the `use` statements and public APIs in `crates/*/src/lib.rs`. It describes cratelab's own test-lab implementation; it does **not** describe the separate `tv-rs` / `cctv-rs` target workspaces the lab tests. The Tauri shell (`shell/`) is deliberately outside the workspace (see §6).
 
 ## 2. Dependency graph (verified)
 
@@ -48,6 +48,17 @@ flowchart TD
 
   scenarios --> engine
   conformance --> engine
+
+  forge_core["forge-core\nforge SDK · registry · pipeline"]
+  forge_rag["forge-rag\nBM25 retrieval · prompts"]
+  forge_sidecar["forge-sidecar\nstdio JSON-RPC · remotes"]
+
+  errors --> forge_core
+  errors --> forge_rag
+  errors --> forge_sidecar
+  forge_core --> forge_rag
+  forge_core --> forge_sidecar
+  forge_rag --> forge_sidecar
 ```
 
 **Correction vs the earlier draft in `docs/crate-intelligence.md`:** that graph omitted three verified direct edges — `lab-errors --> lab-generate`, `lab-errors --> lab-conformance`, and `lab-errors --> lab-engine` (each of those crates lists `lab-errors` in its `Cargo.toml` and imports from it). It also implied a straight `manifest --> generate --> …` runtime chain; in fact `lab-generate` has **no dependents inside the workspace** — `lab-engine` does not depend on it. `lab-generate` is a standalone authoring tool (its only consumer is its own `lab-generate` binary), so it sits off to the side of the runtime path.
@@ -64,6 +75,11 @@ Dependency summary (from each manifest):
 | `lab-scenarios` | `lab-errors`, `lab-manifest`, `lab-mocks`, `lab-coverage` |
 | `lab-conformance` | `lab-errors`, `lab-manifest`, `lab-mocks` |
 | `lab-engine` | `lab-errors`, `lab-manifest`, `lab-mocks`, `lab-coverage`, `lab-scenarios`, `lab-conformance` (+ optional `ureq` under `registry`) |
+| `forge-core` | `lab-errors` |
+| `forge-rag` | `lab-errors`, `forge-core` |
+| `forge-sidecar` | `lab-errors`, `forge-core`, `forge-rag` |
+
+The three `forge-*` crates form a second layer that hangs off the lab's error vocabulary and never depends on the bench crates: the forge **reads** bench evidence, it does not drive the test engine. `forge-core` is the SDK and the one source of truth; `forge-rag` adds retrieval on top of it; `forge-sidecar` composes both into a host-agnostic transport. See [07-the-forge](07-the-forge.md) and [01-architecture](01-architecture.md) §3.
 
 ## 3. Per-crate map
 
@@ -77,6 +93,14 @@ Dependency summary (from each manifest):
 | `lab-scenarios` | `Scenario`, `Step`, `Expect`, `PollSpec`, `OnFail`, `StepResult`, `ScenarioReport`, `ScenarioRunner`; TOML declarative timelines plus bounded, no-I/O Rhai steps; `crates/lab-scenarios/src/lib.rs` | Compose repeatable multi-command workflows and retain step-level evidence. |
 | `lab-conformance` | Deterministic type-directed default/boundary/enum/hostile case generation, zero-panic via `catch_unwind`, declared-invariant checks, cap `MAX_CASES = 96`, tier-aware `must_violations()`; `crates/lab-conformance/src/lib.rs` | Run stable schema-driven robustness sweeps and return minimized, replayable violations. |
 | `lab-engine` | Composes all subsystems: `Lab` (manifest table + sink + ledger + destructive gate), local discovery, drift matching (`match_workspaces`, `Drift`), optional crates.io registry, and the headless `lab` CLI; `crates/lab-engine/src/lib.rs`, `discovery.rs`, `registry.rs`, `bin/lab.rs` | Operator entry point and integration boundary; keep provider/orchestration concerns outside the core test engine. |
+
+### The forge engine crates
+
+| Crate | Verified role and evidence | Knowledge/ops value |
+|---|---|---|
+| `forge-core` | The forge SDK and single source of truth: a manifest-driven workflow registry (one authored `crates/forge-core/forge.workflows.toml`, embedded at build time via `include_str!`), the deterministic seven-stage pipeline (`StageKind` study → knowledge → retrieve → prompt → tools → pipeline → artifact), the `Gate` set (Research / Propose / Validate), typed `Refusal`/`Severity` (a refusal defaults to `Severity::Info` — a non-event, never a panic), proposal `ArtifactKind` (Feature / Fix / Docs / Knowledge / Evaluation), `ProviderPort` + `MockProvider`, `Domain` (Intern / Extern / Ops / Rag), and `ForgeError`; depends on `lab-errors`; `crates/forge-core/src/*.rs` | The workflow contract every other forge crate renders, executes or serves; `ForgeError` maps onto the `lab-errors` vocabulary (§4). |
+| `forge-rag` | Retrieval plane: deterministic corpus ingest and chunking (`CHUNK_LINES = 80`, `CHUNK_OVERLAP = 12`, `DENIED_FILES`), a provenance-rich BM25 index (`Bm25Index`, `K1 = 1.2`, `B = 0.75`), `EvidencePacket` retrieval, and scripted prompt rendering (`CRATE_EVOLUTION_PROMPT = include_str!("../prompts/crate-evolution-research.md")`); depends on `lab-errors`, `forge-core`; `crates/forge-rag/src/*.rs` | Grounds every forge domain in cited evidence that keeps source, crate, revision and line metadata. See [10-knowledge-base-and-retrieval](10-knowledge-base-and-retrieval.md). |
+| `forge-sidecar` | stdio JSON-RPC binary `forge-sidecar` that serves the registry, retrieval and pipeline to any host and bridges declared remotes from one place; methods `forge.ping` / `forge.workflows` / `forge.tokenize`, error codes `INVALID_REQUEST` / `METHOD_NOT_FOUND` / `INTERNAL_ERROR`, `Remote::declared()` (`crates-search` → ModalAsgi, `retrieval-eval` → KaggleKernel); depends on `lab-errors`, `forge-core`, `forge-rag`; `crates/forge-sidecar/src/*.rs` | The single transport seam for every host (shell, CLI, editor) and the one place remote compute is declared. See [08-forge-sdk-and-sidecar](08-forge-sdk-and-sidecar.md). |
 
 ## 4. Evidence-backed operating model
 
@@ -118,14 +142,14 @@ The RAG corpus should be able to answer these about the internal crates:
 
 ## 6. Research-prompt contract and context packet
 
-Use `fleet/prompts/crate-evolution-research.md` as the common system prompt. Its contract, verbatim in intent:
+Use `crates/forge-rag/prompts/crate-evolution-research.md` as the common system prompt. Its contract, verbatim in intent:
 
 - **Context packet order:** (1) the question, target crate(s), task class, deliverable; (2) this map for boundaries and dependency direction; (3) the target crate's `Cargo.toml`, module docs and relevant public declarations with source paths and line ranges; (4) direct dependency/dependent evidence only where a contract crosses a boundary; (5) relevant `manifests/*.lab.toml`, `scenarios/*.toml`, local coverage/conformance outputs and CircleCI gate results; (6) retrieval snippets only when they add evidence, each preserving source, crate, revision and line metadata.
 - **Analysis method:** verified facts first with `path:line` citations; label deductions **Inference** and unresolved choices **Open question**; trace public API → manifest semantics → mock behaviour → coverage → operator effect; distinguish expected typed refusals from defects; never silently prefer one side of a generated/authored disagreement.
 - **Output contract (fixed headings):** Finding (with confidence) → Evidence (claim / source / what it proves) → Cross-crate effects → Coverage and CI implications → Recommended next actions (≤5) → Prompt/context gaps. No patch unless the task is explicitly changed to implementation.
 - **Evaluation rubric (0–2 each):** source traceability and correct crate boundaries; separation of facts/inferences/unknowns; coverage of dependencies that matter; actionability with a measurable completion condition; scope/privacy/cost compliance. Below 8/10 the answer is revised before it becomes an HF artifact or Kaggle result.
 
-For cross-crate work, feed the dependency slice above rather than the whole repository. Every retrieved passage must keep its path, line, revision and crate identity. The fleet builds a **separate** internal index from `crates/*/src/**/*.rs` plus each package's name, description and direct internal dependencies (`fleet/README.md` §Internal crate intelligence); the private `simple-signage`/`companion-app` docs corpus is a different, explicitly-bounded retrieval route.
+For cross-crate work, feed the dependency slice above rather than the whole repository. Every retrieved passage must keep its path, line, revision and crate identity. The forge builds a **separate** internal index from `crates/*/src/**/*.rs` plus each package's name, description and direct internal dependencies (`forge_knowledge::build_crate_intelligence_index`, written to the runtime home's `data/cratelab-crates-index.jsonl`); the private `simple-signage`/`companion-app` docs corpus is a different, explicitly-bounded retrieval route.
 
 ## 7. Current limitations (verified from source)
 
@@ -137,11 +161,12 @@ For cross-crate work, feed the dependency slice above rather than the whole repo
 | Rhai scenario steps are CWD-relative and the shipped generative script is unused | `ScenarioRunner::run` calls `scenario.load_script(Path::new("."), rel)`; `scenarios/scripts/fleet_chaos.rhai` is referenced by no scenario |
 | The coverage ledger is in-memory only, so `lab coverage` prints `0.0%` | `Ledger` has no serialization path and `lab coverage` builds a fresh `Lab` and runs nothing |
 | The shell previously hid broken manifests; a separate error surface now exists | `load_all_manifests` still skips parse failures, but `manifest_load_errors` + the `manifest_errors` command surface them — addressed (was review finding F10/F12) |
-| Internal `crates/` intelligence is a separate fleet index, not mixed into the private docs corpus | `fleet/README.md` builds the crates index from `crates/*/src/**/*.rs`; `fleet_retrieve` in `shell/src-tauri/src/lib.rs` accepts only `simple-signage` / `companion-app` project ids |
+| Internal `crates/` intelligence is a separate forge index, not mixed into the private docs corpus | `forge_knowledge::build_crate_intelligence_index` builds the crates index from `crates/*/src/**/*.rs`; `forge_retrieve` in `shell/src-tauri/src/lib.rs` accepts only `simple-signage` / `companion-app` project ids |
 
 ## Consolidation notes
 
 - Rebuilt the dependency graph from the actual `crates/*/Cargo.toml` files and corrected `docs/crate-intelligence.md`: added the three omitted `lab-errors` → {generate, conformance, engine} edges and clarified that `lab-generate` has no in-workspace dependents.
 - Kept the verified per-crate roles (they matched the source) and expanded the evidence to exact file paths and the real public types in each `src/lib.rs`.
-- Preserved the operating-model flow, priority questions and the research-prompt contract (still accurate against `fleet/prompts/crate-evolution-research.md`), and updated the limitations with the now-separate crates index route.
+- Preserved the operating-model flow, priority questions and the research-prompt contract (still accurate against `crates/forge-rag/prompts/crate-evolution-research.md`), and updated the limitations with the now-separate crates index route.
+- **Added the three `forge-*` engine crates** (`forge-core`, `forge-rag`, `forge-sidecar`) to the dependency graph, the dependency summary and the per-crate map, with their verified dependency edges (`lab-errors` → each; `forge-core` → `forge-rag`/`forge-sidecar`; `forge-rag` → `forge-sidecar`). This is the former "fleet": `fleet/prompts/…` and `fleet/README.md` now live in the crates, and `fleet_retrieve` is `forge_retrieve`.
 - Dropped the old draft's Kaggle-CLI-not-detected claim (not re-verified this pass) and any statement about hardware that the source does not support.
