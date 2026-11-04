@@ -122,6 +122,32 @@ fn forge_env_value(name: &str) -> Option<String> {
     })
 }
 
+/// The authored task ids for one scope, or every id when `scope` is `None`.
+///
+/// Validation reads this instead of a hand-maintained literal, so the command
+/// surface can never drift from the engine's catalog (`forge.tasks.toml`).
+pub(crate) fn forge_task_ids(scope: Option<forge_core::TaskScope>) -> Vec<String> {
+    match forge_core::embedded_tasks() {
+        Ok(catalog) => catalog
+            .tasks
+            .iter()
+            .filter(|task| scope.is_none_or(|scope| task.scopes.contains(&scope)))
+            .map(|task| task.id.clone())
+            .collect(),
+        Err(_) => Vec::new(),
+    }
+}
+
+/// The engine's authored registries, served to the shell so the UI renders
+/// them rather than a hand-kept frontend table: the seven-stage workflow
+/// spine (`forge.workflows.toml`) and the task catalog (`forge.tasks.toml`).
+#[tauri::command]
+fn forge_catalog() -> Result<serde_json::Value, String> {
+    let workflows = forge_core::embedded().map_err(|error| error.to_string())?;
+    let tasks = forge_core::embedded_tasks().map_err(|error| error.to_string())?;
+    Ok(serde_json::json!({ "workflows": workflows.workflows, "tasks": tasks.tasks }))
+}
+
 const FORGE_SETTINGS_KEYS: &[(&str, bool)] = &[
     ("GEMINI_API_KEY", true), ("GROQ_API_KEY", true), ("CF_ACCOUNT_ID", false), ("CF_API_TOKEN", true),
     ("NVIDIA_API_KEY", true), ("OPENROUTER_API_KEY", true), ("ZHIPU_API_KEY", true), ("MODELSCOPE_TOKEN", true), ("CS_CRATES", false), ("CS_HOME", false),
@@ -258,9 +284,9 @@ fn forge_report_row(path: &std::path::Path) -> Option<serde_json::Value> {
         // dry-run-{repository}-{crate_id}-{task}.md — both repository names
         // and task ids are closed sets, so anchor on both ends (crate ids and
         // repo names themselves contain dashes, so blind splitting is wrong).
-        for candidate in ["research-summary", "rustdoc-audit", "feature-study", "bug-investigation", "debug-plan", "issue-triage", "knowledge-synthesis", "cross-language-research"] {
+        for candidate in forge_task_ids(None) {
             if let Some(head) = parts.strip_suffix(&format!("-{candidate}")) {
-                task = Some(candidate.to_string());
+                task = Some(candidate);
                 for repo in ["tv-rs", "cctv-rs"] {
                     if let Some(crate_part) = head.strip_prefix(&format!("{repo}-")) {
                         repository = Some(repo.to_string());
@@ -704,7 +730,7 @@ fn forge_source_context(crate_id: &str) -> Result<(Vec<String>, String), String>
 
 #[tauri::command]
 fn forge_preview_live(provider: String, model: String, crate_id: String, task: String, project_id: String, case_context: String, learning_notes: String) -> Result<serde_json::Value, String> {
-    if !["rustdoc-audit", "research-summary", "feature-study", "bug-investigation", "debug-plan", "issue-triage", "knowledge-synthesis", "cross-language-research"].contains(&task.as_str()) { return Err("unsupported Forge workflow".into()); }
+    if !forge_task_ids(Some(forge_core::TaskScope::Pilot)).contains(&task) { return Err("unsupported Forge workflow".into()); }
     let endpoint = forge_live_endpoint(&provider).ok_or_else(|| "provider does not have an inference adapter".to_string())?;
     let settings = forge_settings();
     if settings["selected_provider"].as_str() != Some(provider.as_str()) {
@@ -997,7 +1023,7 @@ fn forge_status() -> serde_json::Value {
         "target_path": target,
         "target_available": target.is_dir() && !crates.is_empty(),
         "repositories": repositories,
-        "pilot": { "workspace": repository, "crates": crates, "batch_size": 3, "tasks": ["research-summary", "rustdoc-audit", "feature-study", "bug-investigation", "debug-plan", "issue-triage", "knowledge-synthesis", "cross-language-research"] },
+        "pilot": { "workspace": repository, "crates": crates, "batch_size": 3, "tasks": forge_task_ids(Some(forge_core::TaskScope::Pilot)) },
         "retrieval": { "enabled": forge_retrieval_endpoint().is_some(), "destination": forge_env_value("MODAL_SEARCH_URL").unwrap_or_default(), "projects": ["simple-signage", "companion-app"] },
         "selected_provider": selected,
         "providers": forge_provider_rows(selected),
@@ -1284,7 +1310,7 @@ fn forge_render_dry_run_report(
 
 #[tauri::command]
 fn forge_dry_run(task: String, crate_id: String, case_context: String) -> Result<serde_json::Value, String> {
-    if !["rustdoc-audit", "research-summary", "feature-study", "bug-investigation", "debug-plan", "issue-triage", "knowledge-synthesis", "cross-language-research"].contains(&task.as_str()) {
+    if !forge_task_ids(Some(forge_core::TaskScope::Pilot)).contains(&task) {
         return Err("unsupported Forge workflow".into());
     }
     let repository = forge_selected_repository();
@@ -1544,6 +1570,7 @@ pub fn run() {
             set_backend,
             manifest_errors,
             probe_url,
+            forge_catalog,
             forge_status,
             forge_select_repository,
             forge_select_provider,
@@ -1571,6 +1598,21 @@ pub fn run() {
 mod tests {
     use super::*;
     use std::io::Read;
+
+    /// The engine's task catalog is the single source for the shell's task
+    /// validation; if it ever fails to parse, every task would be rejected.
+    #[test]
+    fn embedded_task_catalog_parses_and_matches_the_pilot_contract() {
+        let catalog = forge_core::embedded_tasks().expect("embedded task catalog parses");
+        let pilot = catalog.ids_in_scope(forge_core::TaskScope::Pilot);
+        assert_eq!(pilot.len(), 8, "the pilot keeps its eight tasks");
+        assert!(pilot.contains(&"rustdoc-audit"));
+        assert_eq!(
+            forge_task_ids(Some(forge_core::TaskScope::Pilot)),
+            pilot.iter().map(|id| id.to_string()).collect::<Vec<_>>()
+        );
+        assert_eq!(forge_task_ids(None).len(), 10, "eight pilot plus two crate-intelligence");
+    }
 
     /// The provider ladder is only as honest as its weakest mapping: every id
     /// that can appear in a failover route must have a live endpoint builder

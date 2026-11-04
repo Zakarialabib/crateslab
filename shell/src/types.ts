@@ -215,6 +215,18 @@ export interface ForgeStatus {
 }
 
 export interface ForgeRepository { id: string; name: string; root: string; available: boolean; crate_count: number; crates: { id: string; package: string }[] }
+
+// The engine's authored registries, served by `forge_catalog`. The shell
+// renders these instead of a hand-kept frontend table.
+export type ForgeStageKind = "study" | "knowledge" | "retrieve" | "prompt" | "tools" | "pipeline" | "artifact";
+export type ForgeGate = "research" | "propose" | "validate";
+export type ForgeDomain = "intern" | "extern" | "ops" | "rag";
+export type ForgeTaskScope = "pilot" | "crate-intelligence";
+
+export interface ForgeStage { id: string; kind: ForgeStageKind; title: string; gate?: ForgeGate | null }
+export interface ForgeWorkflow { id: string; domain: ForgeDomain; title: string; target: string; tools: string[]; stages: ForgeStage[] }
+export interface ForgeTask { id: string; label: string; group: string; local: string; live: string; steps: string[]; refs: string[]; scopes: ForgeTaskScope[] }
+export interface ForgeCatalog { workflows: ForgeWorkflow[]; tasks: ForgeTask[] }
 export interface ForgeReport { name: string; kind: string; repository?: string | null; crate?: string | null; task?: string | null; size: number; modified: number; path: string }
 export interface ForgeReportContent { name: string; path: string; content: string }
 export interface ForgeDashboardData {

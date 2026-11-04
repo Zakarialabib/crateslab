@@ -610,6 +610,7 @@ dependencies = [
 name = "cratelab-shell"
 version = "0.1.0"
 dependencies = [
+ "forge-core",
  "forge-rag",
  "lab-coverage",
  "lab-engine",

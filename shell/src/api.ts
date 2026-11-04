@@ -4,7 +4,7 @@
 // browser fallback on purpose: the engine is the only source of truth, so the
 // UI can never show data the lab did not actually produce.
 import { invoke } from "@tauri-apps/api/core";
-import type { CircleCiDashboard, CrateKnowledgeSearch, CrateResearchPrompt, ForgeDashboardData, ForgeLivePreview, ForgeReport, ForgeReportContent, ForgeRun, ForgeSettingsSnapshot, ForgeStatus, HeatRow, LabErrorValue, Manifest, ScenarioReport, SinkOutcome, UrlProbe, WorkspaceSummary } from "./types";
+import type { CircleCiDashboard, CrateKnowledgeSearch, CrateResearchPrompt, ForgeCatalog, ForgeDashboardData, ForgeLivePreview, ForgeReport, ForgeReportContent, ForgeRun, ForgeSettingsSnapshot, ForgeStatus, HeatRow, LabErrorValue, Manifest, ScenarioReport, SinkOutcome, UrlProbe, WorkspaceSummary } from "./types";
 
 export const api = {
   workspaces: (): Promise<WorkspaceSummary[]> => invoke("workspaces"),
@@ -36,6 +36,7 @@ export const api = {
   manifestErrors: (): Promise<string[]> => invoke("manifest_errors"),
 
   forgeStatus: (): Promise<ForgeStatus> => invoke("forge_status"),
+  forgeCatalog: (): Promise<ForgeCatalog> => invoke("forge_catalog"),
   forgeSelectRepository: (repository: string): Promise<ForgeStatus> => invoke("forge_select_repository", { repository }),
 
   forgeGetSettings: (): Promise<ForgeSettingsSnapshot> => invoke("forge_get_settings"),

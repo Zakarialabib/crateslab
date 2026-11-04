@@ -275,7 +275,7 @@ fn safe_crate_name(name: &str) -> bool {
 
 pub fn crate_research_prompt(forge: &Path, crate_name: &str, task: &str) -> Result<Value, String> {
     if !safe_crate_name(crate_name) { return Err("crate id has invalid characters".into()); }
-    if !["research-summary", "rustdoc-audit", "conformance-review", "architecture-map"].contains(&task) {
+    if !crate::forge_task_ids(Some(forge_core::TaskScope::CrateIntelligence)).iter().any(|id| id == task) {
         return Err("unsupported crate-intelligence task".into());
     }
     let repo = forge.parent().ok_or("invalid Forge directory")?;

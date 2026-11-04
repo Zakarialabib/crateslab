@@ -45,7 +45,6 @@ src/                       Svelte 5 (runes) + TypeScript UI
   App.svelte               view router / shell chrome
   api.ts                   typed wrappers over the Tauri IPC commands
   types.ts                 shared types mirroring the Rust payloads
-  forge-workflows.ts       forge workflow templates
   bonsai-models.ts         Bonsai model ↔ free-hardware mapping
   components/
     ArgWidget.svelte       arg type → widget table (the generative-UI core)

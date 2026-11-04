@@ -1,8 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { api } from "../api";
-  import { forgeWorkflows } from "../forge-workflows";
-  import type { CircleCiDashboard, ForgeLivePreview, ForgeProvider, ForgeRun, ForgeStatus, LearningNote } from "../types";
+  import type { CircleCiDashboard, ForgeCatalog, ForgeLivePreview, ForgeProvider, ForgeRun, ForgeStatus, LearningNote } from "../types";
 
   let status = $state<ForgeStatus | null>(null);
   let busy = $state(false);
@@ -13,7 +12,15 @@
   let caseContext = $state("");
   let learningNotes = $state("");
   let crateId = $state("discovery");
-  const workflow = $derived(forgeWorkflows.find((item) => item.id === task));
+  // The engine's authored registries drive this screen: the task catalog
+  // (`forge.tasks.toml`) and the seven-stage workflow spine
+  // (`forge.workflows.toml`). Nothing here is a hand-kept frontend table.
+  let catalog = $state<ForgeCatalog | null>(null);
+  let workflowId = $state("");
+  const forgeTasks = $derived((catalog?.tasks ?? []).filter((item) => item.scopes.includes("pilot")));
+  const workflow = $derived(forgeTasks.find((item) => item.id === task));
+  const engineWorkflows = $derived(catalog?.workflows ?? []);
+  const activeWorkflow = $derived(engineWorkflows.find((item) => item.id === workflowId) ?? engineWorkflows[0]);
   let ragProjectId = $state("simple-signage");
   type QueueItem = { id: string; repository?: string; crate_id: string; task: string; state: "pending" | "done" };
   let queue = $state<QueueItem[]>([]);
@@ -73,9 +80,13 @@
     loading = true;
     error = "";
     try {
-      status = await api.forgeStatus();
-      if (!status.pilot.crates.some((crate) => crate.id === crateId)) crateId = status.pilot.crates[0]?.id ?? "";
-      learningNotes = currentLearningNotes(status.target, task);
+      const current = await api.forgeStatus();
+      status = current;
+      catalog = await api.forgeCatalog();
+      if (!current.pilot.crates.some((crate) => crate.id === crateId)) crateId = current.pilot.crates[0]?.id ?? "";
+      if (!forgeTasks.some((item) => item.id === task)) task = forgeTasks[0]?.id ?? task;
+      if (!engineWorkflows.some((item) => item.id === workflowId)) workflowId = engineWorkflows.find((item) => item.target === current.target)?.id ?? engineWorkflows[0]?.id ?? "";
+      learningNotes = currentLearningNotes(current.target, task);
     } catch (e) {
       error = String(e);
     } finally {
@@ -340,10 +351,19 @@
         <label class="case-field" for="forge-task">
           <span class="field-label">Task</span>
           <select id="forge-task" bind:value={task}>
-            {#each forgeWorkflows as workflow (workflow.id)}
-              <option value={workflow.id}>{workflow.group} · {workflow.label}</option>
+            {#each forgeTasks as item (item.id)}
+              <option value={item.id}>{item.group} · {item.label}</option>
             {/each}
           </select>
+        </label>
+        <label class="case-field" for="forge-workflow">
+          <span class="field-label">Workflow (spine)</span>
+          <select id="forge-workflow" bind:value={workflowId}>
+            {#each engineWorkflows as item (item.id)}
+              <option value={item.id}>{item.title} · {item.domain}</option>
+            {/each}
+          </select>
+          <small>authored in the engine registry</small>
         </label>
         <label class="case-field" for="forge-provider">
           <span class="field-label">Provider (rung)</span>
@@ -366,6 +386,14 @@
           </label>
         {/if}
       </div>
+
+      {#if activeWorkflow}
+        <div class="spine-strip" aria-label="Workflow spine">
+          {#each activeWorkflow.stages as stage (stage.id)}
+            <span class="spine-chip">{stage.title}{#if stage.gate}<b class="spine-gate">{stage.gate}</b>{/if}</span>
+          {/each}
+        </div>
+      {/if}
 
       <div class="step-rail" aria-label="Case steps">
         {#each workflow?.steps ?? [] as step, i (i)}
