@@ -19,7 +19,7 @@ pub enum ForgeError {
     #[error(transparent)]
     Lab(#[from] LabError),
 
-    /// The workflow registry, or one of its entries, is malformed.
+    /// The workflow or task registry, or one of its entries, is malformed.
     #[error("workflow '{id}': {problem}")]
     Workflow {
         /// Workflow id, or `<registry>` for whole-file problems.

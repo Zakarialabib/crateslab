@@ -42,6 +42,7 @@ pub mod pipeline;
 pub mod provider;
 pub mod stage;
 pub mod target;
+pub mod task;
 pub mod workflow;
 
 pub use artifact::{Artifact, ArtifactKind, EvidenceRef};
@@ -50,4 +51,5 @@ pub use pipeline::{AllowAll, GateRules, Pipeline, PipelineOutcome, RuleSet, Stag
 pub use provider::{MockProvider, Provider, ProviderPort, ProviderRequest, ProviderResponse};
 pub use stage::{Gate, Refusal, RuleVerdict, Stage, StageKind};
 pub use target::{Domain, Target};
+pub use task::{embedded_tasks, Task, TaskCatalog, TaskScope, EMBEDDED_TASKS};
 pub use workflow::{embedded, Workflow, WorkflowRegistry, EMBEDDED_REGISTRY};
