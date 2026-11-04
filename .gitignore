@@ -7,8 +7,24 @@
 .meta.json
 
 # carve-out: downloaded desktop helper binaries must never be committed
-claude*.exe
 node_modules
 /tests/e2e_suite
 /.agents
 shell/src-tauri/target
+
+/.webview2
+fleet/.env
+fleet/state/
+fleet/reports/
+fleet/data/
+fleet/target/
+fleet/.venv/
+fleet/**/__pycache__/
+fleet/**/*.pyc
+fleet/.env.example
+fleet/.modal-config
+fleet/.modal-home/
+fleet/.modal-secret-*.env
+fleet/.kaggle-venv/
+fleet/kaggle/crate-intelligence/kernel-metadata.json
+fleet/.env-draft

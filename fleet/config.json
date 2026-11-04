@@ -5,7 +5,54 @@
     "workspace_root": "C:/laragon/www/tv-rs",
     "crate_dir": "crates/*",
     "batch_size": 3,
-    "phase_one_tasks": ["rustdoc-audit", "research-summary"]
+    "phase_one_tasks": ["rustdoc-audit", "research-summary"],
+    "rag": { "dataset_repo_env": "HF_DATASET_REPO", "revision_env": "HF_DATASET_REVISION", "artifact": "signage-docs-index.jsonl", "top_k": 6 }
+  },
+  "repositories": [
+    { "id": "tv-rs", "path_env": "TV_RS_ROOT", "default_root": "C:/laragon/www/tv-rs", "role": "TV and device-control Rust workspace" },
+    { "id": "cctv-rs", "path_env": "CCTV_RS_ROOT", "default_root": "C:/laragon/www/cctv-rs", "role": "CCTV Rust workspace" }
+  ],
+  "knowledge_sources": [
+    { "id": "simple-signage", "path": "C:/laragon/www/Simple-Signage/docs", "scope": "docs-only" },
+    { "id": "companion-app", "path": "C:/laragon/www/companion-app/docs", "scope": "docs-only" }
+  ],
+  "internal_crates_knowledge": {
+    "source_root": "crates/*/src/**/*.rs",
+    "metadata_source": "crates/*/Cargo.toml (package name, description, internal dependencies only)",
+    "artifact": "cratelab-crates-index.jsonl",
+    "dataset_repo_env": "HF_CRATES_DATASET_REPO",
+    "dataset_revision_env": "HF_CRATES_DATASET_REVISION",
+    "modal_app": "fleet/modal/crate_intelligence_app.py",
+    "modal_endpoint_env": "CRATE_INTEL_MODAL_SEARCH_URL",
+    "kaggle_kernel_env": "KAGGLE_KERNEL_ID",
+    "scope": "private source intelligence; source stays separate from tv-rs target and signage docs"
+  },
+  "credential_guides": {
+    "GEMINI_API_KEY": "https://aistudio.google.com/apikey",
+    "GROQ_API_KEY": "https://console.groq.com/keys",
+    "CF_ACCOUNT_ID": "https://dash.cloudflare.com/",
+    "CF_API_TOKEN": "https://dash.cloudflare.com/profile/api-tokens",
+    "NVIDIA_API_KEY": "https://build.nvidia.com/",
+    "OPENROUTER_API_KEY": "https://openrouter.ai/settings/keys",
+    "ZHIPU_API_KEY": "https://open.bigmodel.cn/usercenter/apikeys",
+    "MODELSCOPE_TOKEN": "https://modelscope.cn/my/myaccesstoken",
+    "BONSAI_URL": "https://colab.research.google.com/",
+    "KAGGLE_BONSAI_URL": "https://www.kaggle.com/code",
+    "HF_TOKEN": "https://huggingface.co/settings/tokens",
+    "HF_READ_TOKEN": "https://huggingface.co/settings/tokens",
+    "HF_DATASET_REPO": "https://huggingface.co/new-dataset",
+    "MODAL_TOKEN_ID": "https://modal.com/docs/cli/latest/token",
+    "MODAL_TOKEN_SECRET": "https://modal.com/docs/cli/latest/token",
+    "MODAL_SEARCH_URL": "https://modal.com/docs/cli/latest/deploy",
+    "QDRANT_URL": "https://cloud.qdrant.io/",
+    "QDRANT_API_KEY": "https://cloud.qdrant.io/",
+    "CIRCLECI_TOKEN": "https://app.circleci.com/settings/user/tokens",
+    "CIRCLECI_PROJECT_SLUGS": "https://app.circleci.com/projects",
+    "KAGGLE_KERNEL_ID": "https://www.kaggle.com/code",
+    "HF_CRATES_DATASET_REPO": "https://huggingface.co/new-dataset",
+    "CRATE_INTEL_MODAL_SEARCH_URL": "https://modal.com/docs/cli/latest/deploy",
+    "KAGGLE_API_KEY": "https://www.kaggle.com/settings",
+    "GH_TOKEN": "https://github.com/settings/personal-access-tokens"
   },
   "execution": {
     "network": true,

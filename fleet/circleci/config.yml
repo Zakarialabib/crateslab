@@ -2,14 +2,14 @@ version: 2.1
 jobs:
   rust-gates:
     docker:
-      - image: cimg/rust:1.85
+      - image: cimg/rust:1.89
     steps:
       - checkout
       - run: rustup component add rustfmt clippy
       - run: cargo fmt --all -- --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace --locked
-      - run: cargo doc --workspace --no-deps
+      - run: RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
 workflows:
   crate-gates:
     jobs:

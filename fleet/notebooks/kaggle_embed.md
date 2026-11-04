@@ -1,10 +1,11 @@
-# Kaggle index build (review-first)
+# Kaggle embedding notes (optional future batch path)
 
-1. Attach only the public crate checkout as a Kaggle Dataset input and enable Internet only for package/model download.
-2. Run `python /kaggle/input/cratelab/build_rag_index.py --root /kaggle/input/tv-rs --crate tv-rs --out /kaggle/working/index.jsonl`.
-3. Inspect the JSONL: every row must have `crate://` provenance; confirm private names, `.env`, lockfiles and CI paths are absent.
-4. Optional embedding pass: use `sentence-transformers` with BGE-M3 on the Kaggle GPU and write `index.parquet` containing `id, crate, source, revision, text, vector`.
-5. Upload only the reviewed corpus/index to a private Hugging Face dataset repository. Keep the GitHub/HF token in Kaggle Secrets; never write it into notebook output or a dataset.
-6. Modal search currently consumes `index.jsonl` from its read-only Volume. Dense vector search/Qdrant is a later optimization once lexical search quality is measured.
+The active first-phase index contains selected private signage documentation. CrateLab's Rust/Tauri backend builds and validates that corpus locally, and Fleet Settings owns any confirmed Hugging Face upload. Do not use the legacy Python uploader steps below.
+
+1. Kaggle is optional. Use it only for a reviewed embedding experiment after BM25 search has been evaluated.
+2. Attach only the selected documentation corpus and the minimum model inputs needed; do not attach source trees or secrets.
+3. Preserve `id`, `project`, `source`, `revision`, and text alongside each vector so retrieved results remain traceable.
+4. Compare embedding retrieval against the existing Modal BM25 endpoint before adopting it. Keep HF upload and deployment in the separate confirmed Fleet Settings workflows.
+5. Modal currently loads the pinned `index.jsonl` from the private HF dataset into read-only container memory. Dense vector search/Qdrant is a later optimization.
 
 Kaggle quotas and GPU availability vary by account and date. Check the current Kaggle settings page before planning a batch; this notebook has no scheduler and makes no automatic uploads.
