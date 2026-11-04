@@ -1,0 +1,123 @@
+@import "tailwindcss";
+
+/*
+ * cratelab shell — design tokens.
+ * One blue family (≈215°), no rainbow. Light by default, `.dark` opts in.
+ * Semantic names (shadcn-compatible) map onto Tailwind utilities through
+ * `@theme inline`, so components speak `bg-card text-muted-foreground border-border`.
+ * The cratelab-specific aliases (--brand, --success, --warning, --stripe,
+ * --card-elevated) stay available to migrated markup.
+ */
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --background: #f5f8fc;
+  --foreground: #142840;
+  --card: #ffffff;
+  --card-foreground: #142840;
+  --card-elevated: #e4ecf5;
+  --popover: #ffffff;
+  --popover-foreground: #142840;
+  --primary: #2d7ab3;
+  --primary-foreground: #ffffff;
+  --secondary: #edf2f9;
+  --secondary-foreground: #142840;
+  --muted: #edf2f9;
+  --muted-foreground: #5a7a96;
+  --accent: #edf2f9;
+  --accent-foreground: #142840;
+  --destructive: #8a3828;
+  --destructive-foreground: #ffffff;
+  --border: #c0d0e2;
+  --input: #c0d0e2;
+  --ring: #2d7ab3;
+  --stripe: #eef3fa;
+  --brand: #1a4a7a;
+  --success: #2d7a5a;
+  --warning: #8a6b2d;
+  --radius: 0.625rem;
+}
+
+.dark {
+  --background: #0d1826;
+  --foreground: #dfeaf4;
+  --card: #12202f;
+  --card-foreground: #dfeaf4;
+  --card-elevated: #1a2f45;
+  --popover: #12202f;
+  --popover-foreground: #dfeaf4;
+  --primary: #4d9fd6;
+  --primary-foreground: #0b1826;
+  --secondary: #16283a;
+  --secondary-foreground: #dfeaf4;
+  --muted: #16283a;
+  --muted-foreground: #8ba7c0;
+  --accent: #1a2f45;
+  --accent-foreground: #dfeaf4;
+  --destructive: #d98070;
+  --destructive-foreground: #0b1826;
+  --border: #27435c;
+  --input: #27435c;
+  --ring: #4d9fd6;
+  --stripe: #132335;
+  --brand: #7fb2dc;
+  --success: #4fb98a;
+  --warning: #d6a94e;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-card-elevated: var(--card-elevated);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-stripe: var(--stripe);
+  --color-brand: var(--brand);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  html,
+  body,
+  #root {
+    margin: 0;
+    height: 100%;
+  }
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font: 14px/1.55 "Segoe UI", system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  code,
+  pre,
+  kbd,
+  samp {
+    font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  }
+}
