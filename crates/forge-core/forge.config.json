@@ -1,20 +1,18 @@
 {
-  "control_center": "C:/laragon/www/cratelab",
   "target": {
     "name": "tv-rs",
-    "workspace_root": "C:/laragon/www/tv-rs",
     "crate_dir": "crates/*",
     "batch_size": 3,
     "phase_one_tasks": ["rustdoc-audit", "research-summary"],
     "rag": { "dataset_repo_env": "HF_DATASET_REPO", "revision_env": "HF_DATASET_REVISION", "artifact": "signage-docs-index.jsonl", "top_k": 6 }
   },
   "repositories": [
-    { "id": "tv-rs", "path_env": "TV_RS_ROOT", "default_root": "C:/laragon/www/tv-rs", "role": "TV and device-control Rust workspace" },
-    { "id": "cctv-rs", "path_env": "CCTV_RS_ROOT", "default_root": "C:/laragon/www/cctv-rs", "role": "CCTV Rust workspace" }
+    { "id": "tv-rs", "path_env": "TV_RS_ROOT", "role": "TV and device-control Rust workspace" },
+    { "id": "cctv-rs", "path_env": "CCTV_RS_ROOT", "role": "CCTV Rust workspace" }
   ],
   "knowledge_sources": [
-    { "id": "simple-signage", "path": "C:/laragon/www/Simple-Signage/docs", "scope": "docs-only" },
-    { "id": "companion-app", "path": "C:/laragon/www/companion-app/docs", "scope": "docs-only" }
+    { "id": "simple-signage", "path_env": "SIMPLE_SIGNAGE_ROOT", "subpath": "docs", "scope": "docs-only" },
+    { "id": "companion-app", "path_env": "COMPANION_APP_ROOT", "subpath": "docs", "scope": "docs-only" }
   ],
   "internal_crates_knowledge": {
     "source_root": "crates/*/src/**/*.rs",
