@@ -2,6 +2,7 @@
 //!
 //! The desktop control plane is Rust. The only Python runtime retained in this
 //! path is Modal's deployed ASGI service, which runs inside Modal's Python image.
+use forge_rag::ingest::{chunk_lines, CHUNK_LINES, CHUNK_OVERLAP};
 use regex::Regex;
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
@@ -75,19 +76,6 @@ fn collect_candidates(root: &Path) -> Result<Vec<PathBuf>, String> {
     Ok(found)
 }
 
-fn chunks(raw: &str) -> Vec<(usize, String)> {
-    let lines: Vec<&str> = raw.lines().collect();
-    let (mut start, mut out) = (0, Vec::new());
-    while start < lines.len() {
-        let end = (start + 80).min(lines.len());
-        let text = lines[start..end].join("\n").trim().to_string();
-        if !text.is_empty() { out.push((start + 1, text)); }
-        if end == lines.len() { break; }
-        start = end - 12;
-    }
-    out
-}
-
 pub fn build_signage_index(forge: &Path, roots: &BTreeMap<String, PathBuf>) -> Result<Value, String> {
     let checks = patterns();
     let mut rows = Vec::new();
@@ -103,7 +91,7 @@ pub fn build_signage_index(forge: &Path, roots: &BTreeMap<String, PathBuf>) -> R
             if checks.iter().any(|re| re.is_match(&raw)) { skipped += 1; continue; }
             let rel = path.strip_prefix(root).map_err(|e| e.to_string())?.to_string_lossy().replace('\\', "/");
             files += 1;
-            for (line, text) in chunks(&raw) {
+            for (line, text) in chunk_lines(&raw, CHUNK_LINES, CHUNK_OVERLAP) {
                 rows.push(json!({
                     "id":format!("{project}:{rel}:{line}"), "project":project,
                     "source":format!("project://{project}/{rel}#L{line}"), "path":rel,
@@ -222,7 +210,7 @@ pub fn build_crate_intelligence_index(forge: &Path) -> Result<Value, String> {
                 if checks.iter().any(|pattern| pattern.is_match(&raw)) { skipped_secret_files += 1; continue; }
                 let rel = path.strip_prefix(repo).map_err(|e| e.to_string())?.to_string_lossy().replace('\\', "/");
                 files += 1;
-                for (line, text) in chunks(&raw) {
+                for (line, text) in chunk_lines(&raw, CHUNK_LINES, CHUNK_OVERLAP) {
                     rows.push(json!({"id":format!("{crate_name}:{rel}:{line}"),"project":"cratelab","crate":crate_name,"kind":"rust-source","source":format!("cratelab://{rel}#L{line}"),"path":rel,"start_line":line,"revision":revision,"working_tree_dirty":dirty,"indexed_at":indexed_at,"text":text}));
                 }
             }

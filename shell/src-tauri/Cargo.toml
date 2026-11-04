@@ -27,6 +27,7 @@ lab-mocks = { path = "../../crates/lab-mocks" }
 lab-coverage = { path = "../../crates/lab-coverage" }
 lab-scenarios = { path = "../../crates/lab-scenarios" }
 lab-errors = { path = "../../crates/lab-errors" }
+forge-rag = { path = "../../crates/forge-rag" }
 ureq = { version = "2", default-features = false, features = ["json", "tls"] }
 regex = "1"
 uuid = { version = "1", features = ["v4"] }
