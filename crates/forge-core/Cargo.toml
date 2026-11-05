@@ -12,4 +12,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 toml = { workspace = true }
 thiserror = { workspace = true }
+sha2 = { workspace = true }
 lab-errors = { workspace = true }
+forge-protocol = { workspace = true }
+forge-rag = { workspace = true }

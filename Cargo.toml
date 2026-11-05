@@ -9,6 +9,7 @@ members = [
     "crates/lab-conformance",
     "crates/lab-engine",
     "crates/lab-generate",
+    "crates/forge-protocol",
     "crates/forge-core",
     "crates/forge-rag",
     "crates/forge-sidecar",
@@ -34,6 +35,8 @@ rhai = { version = "1", features = ["sync"] }
 ureq = { version = "2", default-features = false, features = ["json", "tls"] }
 syn = { version = "2", features = ["full", "parsing", "printing", "extra-traits"] }
 quote = "1"
+proc-macro2 = "1"
+sha2 = "0.10"
 
 lab-errors = { path = "crates/lab-errors" }
 lab-manifest = { path = "crates/lab-manifest" }
@@ -43,6 +46,7 @@ lab-scenarios = { path = "crates/lab-scenarios" }
 lab-conformance = { path = "crates/lab-conformance" }
 lab-engine = { path = "crates/lab-engine" }
 
+forge-protocol = { path = "crates/forge-protocol" }
 forge-core = { path = "crates/forge-core" }
 forge-rag = { path = "crates/forge-rag" }
 forge-sidecar = { path = "crates/forge-sidecar" }

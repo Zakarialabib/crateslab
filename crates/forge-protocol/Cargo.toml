@@ -1,0 +1,13 @@
+[package]
+name = "forge-protocol"
+description = "The forge's strict IPC contract: the proposal artifact a generator must emit and the dependency patches it is allowed to request — pure data, no logic, shared by the engines that produce and consume it."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }

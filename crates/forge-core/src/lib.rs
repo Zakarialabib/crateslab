@@ -38,6 +38,7 @@
 
 pub mod artifact;
 pub mod error;
+pub mod orchestrator;
 pub mod pipeline;
 pub mod provider;
 pub mod stage;
@@ -47,6 +48,7 @@ pub mod workflow;
 
 pub use artifact::{Artifact, ArtifactKind, EvidenceRef};
 pub use error::{ForgeError, ForgeResult};
+pub use orchestrator::{ForgeContext, ForgeStateName, ForgeStep, ValidationError};
 pub use pipeline::{AllowAll, GateRules, Pipeline, PipelineOutcome, RuleSet, StageRun};
 pub use provider::{MockProvider, Provider, ProviderPort, ProviderRequest, ProviderResponse};
 pub use stage::{Gate, Refusal, RuleVerdict, Stage, StageKind};
