@@ -2,6 +2,8 @@
   import { api, errorToLines } from "../api";
   import type { ScenarioReport } from "../types";
   import Timeline from "./Timeline.svelte";
+  import { Button } from "$lib/components/ui/button/index.js";
+  import * as Card from "$lib/components/ui/card/index.js";
 
   // Prefilled with the canonical playlist from `scenarios/tv-morning-loop.toml`.
   const DEFAULT = `[scenario]
@@ -57,23 +59,28 @@ expect = "ok"
   }
 </script>
 
-<h2>Scenario composer</h2>
-<p class="sub">Paste or edit a playlist (TOML), run it, read the timeline. Rhai steps need the Rust engine.</p>
+<h2 class="mb-2 text-[15px] font-semibold">Scenario composer</h2>
+<p class="mb-3 text-[12.5px] text-muted-foreground">Paste or edit a playlist (TOML), run it, read the timeline. Rhai steps need the Rust engine.</p>
 
-<div style="display:flex;gap:18px;align-items:flex-start">
-  <div style="flex:1">
-    <div class="form">
-      <textarea style="min-height:320px" bind:value={toml}></textarea>
-      <div class="run-row">
-        <button class="primary" disabled={busy} onclick={() => run(false)}>
+<div class="flex items-start gap-[18px]">
+  <div class="flex-1">
+    <Card.Root class="gap-3">
+      <textarea
+        class="min-h-[320px] w-full resize-y rounded-md border border-input bg-background px-2.5 py-2 font-mono text-[11px] leading-relaxed outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+        bind:value={toml}
+      ></textarea>
+      <div class="flex items-center gap-3">
+        <Button disabled={busy} onclick={() => run(false)}>
           {busy ? "running…" : "Run"}
-        </button>
-        <button class="ghost" disabled={busy} onclick={() => run(true)}>Run (allow destructive)</button>
+        </Button>
+        <Button variant="ghost" disabled={busy} onclick={() => run(true)}>Run (allow destructive)</Button>
       </div>
-    </div>
+    </Card.Root>
   </div>
-  <div style="flex:1">
-    {#if err}<div class="result err">{err.join("\n")}</div>{/if}
+  <div class="flex-1">
+    {#if err}
+      <pre class="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 font-mono text-[11px] whitespace-pre-wrap text-destructive">{err.join("\n")}</pre>
+    {/if}
     {#if report}<Timeline {report} />{/if}
   </div>
 </div>

@@ -17,7 +17,7 @@
 </script>
 
 {#if !data}
-  <p class="sub">loading ledger…</p>
+  <p class="text-[12.5px] text-muted-foreground">loading ledger…</p>
 {:else}
   <CoverageHeatmap percent={data.coverage_percent} rows={data.rows} />
 {/if}

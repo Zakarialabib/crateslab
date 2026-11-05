@@ -2,6 +2,9 @@
   import { onMount } from "svelte";
   import { api } from "../api";
   import type { ForgeDashboardData, ForgeStatus } from "../types";
+  import { Button } from "$lib/components/ui/button";
+  import * as Card from "$lib/components/ui/card";
+  import { cn } from "$lib/utils";
 
   let { onnav }: { onnav?: (view: string) => void } = $props();
 
@@ -56,132 +59,156 @@
   });
 </script>
 
-<section class="ops-dashboard">
-  <header class="forge-header">
+<section class="mx-auto max-w-[1500px] pb-7">
+  <header class="mb-5 flex items-end justify-between gap-5 max-[760px]:flex-col max-[760px]:items-start">
     <div>
-      <div class="eyebrow"><span class="eyebrow-dot"></span> CRATELAB · PROJECT STATE &amp; EVOLUTION</div>
-      <h1>Dashboard</h1>
-      <p class="forge-lede">Is the forge improving the {data?.target ?? "selected"} crates, and what needs a human? Every number below links to the surface that owns it.</p>
+      <div class="mb-[7px] flex items-center gap-[7px] text-[10px] font-extrabold tracking-[1.45px] text-[#63809a]"><span class="size-[7px] shrink-0 rounded-full bg-[#34a878] shadow-[0_0_0_3px_#34a87822]"></span> CRATELAB · PROJECT STATE &amp; EVOLUTION</div>
+      <h1 class="m-0 mb-1 flex items-center gap-3 text-[25px] font-semibold tracking-[-0.4px]">Dashboard</h1>
+      <p class="mt-[7px] text-[13px] text-muted-foreground">Is the forge improving the {data?.target ?? "selected"} crates, and what needs a human? Every number below links to the surface that owns it.</p>
     </div>
-    <button class="ghost" onclick={() => onnav?.("reports")}>Open reports</button>
+    <Button variant="outline" size="sm" onclick={() => onnav?.("reports")}>Open reports</Button>
   </header>
 
-  {#if err}<div class="forge-alert" role="alert">{err}</div>{/if}
-  {#if loading}<p class="forge-lede">Loading project state…</p>{/if}
+  {#if err}<div class="mb-3.5 flex flex-col items-start justify-between gap-2.5 rounded-[9px] border border-destructive/40 bg-destructive/10 px-[13px] py-[10px] text-xs text-destructive" role="alert">{err}</div>{/if}
+  {#if loading}<p class="mt-[7px] text-[13px] text-muted-foreground">Loading project state…</p>{/if}
 
   {#if data}
-    <div class="forge-metrics">
-      <button class="target-card metric-link" onclick={() => onnav?.("reports")}>
-        <span class="metric-label">Evidence runs</span><strong>{data.runs.total}</strong>
-        <small>{Object.keys(data.runs.by_repository).length} repositor{Object.keys(data.runs.by_repository).length === 1 ? "y" : "ies"} touched · open Reports</small>
+    <div class="mb-3.5 grid grid-cols-4 gap-[11px] max-[1060px]:grid-cols-2">
+      <button class="mt-[9px] w-full cursor-pointer rounded-[10px] border border-border bg-card px-[13px] py-3 text-left transition-colors [font-family:inherit] hover:border-primary hover:shadow-[0_2px_10px_#2d7ab322]" onclick={() => onnav?.("reports")}>
+        <span class="text-[10.5px] [font-weight:650] text-muted-foreground">Evidence runs</span><strong class="mt-1 block text-xl tracking-[-0.35px]">{data.runs.total}</strong>
+        <small class="mt-px block text-[10.5px] text-muted-foreground">{Object.keys(data.runs.by_repository).length} repositor{Object.keys(data.runs.by_repository).length === 1 ? "y" : "ies"} touched · open Reports</small>
       </button>
-      <button class="target-card metric-link" onclick={() => onnav?.("reports")}>
-        <span class="metric-label">Reports produced</span><strong>{data.reports.count}</strong>
-        <small>latest: {data.reports.latest[0]?.name ?? "—"}</small>
+      <button class="mt-[9px] w-full cursor-pointer rounded-[10px] border border-border bg-card px-[13px] py-3 text-left transition-colors [font-family:inherit] hover:border-primary hover:shadow-[0_2px_10px_#2d7ab322]" onclick={() => onnav?.("reports")}>
+        <span class="text-[10.5px] [font-weight:650] text-muted-foreground">Reports produced</span><strong class="mt-1 block text-xl tracking-[-0.35px]">{data.reports.count}</strong>
+        <small class="mt-px block text-[10.5px] text-muted-foreground">latest: {data.reports.latest[0]?.name ?? "—"}</small>
       </button>
-      <button class="target-card metric-link" onclick={() => onnav?.("forge-settings")}>
-        <span class="metric-label">Providers ready</span><strong>{probed}/{status?.providers.length ?? data.providers.total} probed</strong>
-        <small>{data.providers.ready}/{data.providers.total} configured · open Providers</small>
+      <button class="mt-[9px] w-full cursor-pointer rounded-[10px] border border-border bg-card px-[13px] py-3 text-left transition-colors [font-family:inherit] hover:border-primary hover:shadow-[0_2px_10px_#2d7ab322]" onclick={() => onnav?.("forge-settings")}>
+        <span class="text-[10.5px] [font-weight:650] text-muted-foreground">Providers ready</span><strong class="mt-1 block text-xl tracking-[-0.35px]">{probed}/{status?.providers.length ?? data.providers.total} probed</strong>
+        <small class="mt-px block text-[10.5px] text-muted-foreground">{data.providers.ready}/{data.providers.total} configured · open Providers</small>
       </button>
-      <button class="target-card metric-link" onclick={() => onnav?.("forge")}>
-        <span class="metric-label">Target repository</span><strong>{data.target}</strong>
-        <small>{data.crates.length} crates in the catalog · open Workflows</small>
+      <button class="mt-[9px] w-full cursor-pointer rounded-[10px] border border-border bg-card px-[13px] py-3 text-left transition-colors [font-family:inherit] hover:border-primary hover:shadow-[0_2px_10px_#2d7ab322]" onclick={() => onnav?.("forge")}>
+        <span class="text-[10.5px] [font-weight:650] text-muted-foreground">Target repository</span><strong class="mt-1 block text-xl tracking-[-0.35px]">{data.target}</strong>
+        <small class="mt-px block text-[10.5px] text-muted-foreground">{data.crates.length} crates in the catalog · open Workflows</small>
       </button>
     </div>
 
-    <div class="ops-actions-grid">
-      <article class="ops-action-card">
-        <span class="section-kicker">BUDGETS TODAY · FREE TIERS</span>
-        <h3>What is left today</h3>
-        {#if budgets.length === 0}
-          <p class="forge-lede">No usage recorded yet. Local caps come from the engine's ledger.</p>
-        {:else}
-          <div class="evo-bars">
-            {#each budgets as row (row.id)}
-              <div class="evo-row">
-                <span class="evo-day">{row.id}</span>
-                <div class="evo-bar-track"><div class="evo-bar" class:evo-bar-warn={row.pct >= 70} style="width:{row.pct}%"></div></div>
-                <span class="evo-count">{row.used}{row.cap ? ` / ${row.cap}` : ""}</span>
-              </div>
-            {/each}
-          </div>
-        {/if}
-        <div class="invariant-row"><span>spend</span><strong>€0.00 (always)</strong><small>free-tier rungs only · no paid endpoint is wired</small></div>
-      </article>
+    <div class="grid grid-cols-3 gap-3 max-[1050px]:grid-cols-2 max-[700px]:grid-cols-1">
+      <Card.Root class="min-w-0">
+        <Card.Header>
+          <span class="block text-[10px] font-extrabold tracking-[1.45px] text-[#63809a]">BUDGETS TODAY · FREE TIERS</span>
+          <Card.Title>What is left today</Card.Title>
+        </Card.Header>
+        <Card.Content>
+          {#if budgets.length === 0}
+            <p class="mt-[7px] min-h-[38px] text-[12px] text-muted-foreground">No usage recorded yet. Local caps come from the engine's ledger.</p>
+          {:else}
+            <div class="mt-2">
+              {#each budgets as row (row.id)}
+                <div class="mb-1.5 flex items-center gap-2.5">
+                  <span class="min-w-[74px] text-[11.5px] text-muted-foreground">{row.id}</span>
+                  <div class="h-[10px] flex-1 overflow-hidden rounded-[5px] bg-muted"><div class={cn("h-full rounded-[5px] bg-primary", row.pct >= 70 && "bg-warning")} style="width:{row.pct}%"></div></div>
+                  <span class="min-w-[34px] text-right text-[11.5px] font-bold">{row.used}{row.cap ? ` / ${row.cap}` : ""}</span>
+                </div>
+              {/each}
+            </div>
+          {/if}
+          <div class="mt-2.5 flex items-baseline gap-2 border-t border-dashed border-border pt-[9px] text-[10px] text-muted-foreground"><span>spend</span><strong class="text-[12px] text-success">€0.00 (always)</strong><small class="ml-auto">free-tier rungs only · no paid endpoint is wired</small></div>
+        </Card.Content>
+      </Card.Root>
 
-      <article class="ops-action-card">
-        <span class="section-kicker">EVOLUTION · RUNS PER DAY (UTC)</span>
-        <h3>Evidence prepared over time</h3>
-        {#if days.length === 0}
-          <p class="forge-lede">No runs yet — start with a local case packet in Workflows.</p>
-        {:else}
-          <div class="evo-bars">
-            {#each days as [day, count] (day)}
-              <div class="evo-row"><span class="evo-day">{shortDay(day)}</span><div class="evo-bar-track"><div class="evo-bar" style="width:{Math.round((count / maxDay) * 100)}%"></div></div><span class="evo-count">{count}</span></div>
-            {/each}
-          </div>
-        {/if}
-      </article>
+      <Card.Root class="min-w-0">
+        <Card.Header>
+          <span class="block text-[10px] font-extrabold tracking-[1.45px] text-[#63809a]">EVOLUTION · RUNS PER DAY (UTC)</span>
+          <Card.Title>Evidence prepared over time</Card.Title>
+        </Card.Header>
+        <Card.Content>
+          {#if days.length === 0}
+            <p class="mt-[7px] min-h-[38px] text-[12px] text-muted-foreground">No runs yet — start with a local case packet in Workflows.</p>
+          {:else}
+            <div class="mt-2">
+              {#each days as [day, count] (day)}
+                <div class="mb-1.5 flex items-center gap-2.5"><span class="min-w-[74px] text-[11.5px] text-muted-foreground">{shortDay(day)}</span><div class="h-[10px] flex-1 overflow-hidden rounded-[5px] bg-muted"><div class="h-full rounded-[5px] bg-primary" style="width:{Math.round((count / maxDay) * 100)}%"></div></div><span class="min-w-[34px] text-right text-[11.5px] font-bold">{count}</span></div>
+              {/each}
+            </div>
+          {/if}
+        </Card.Content>
+      </Card.Root>
     </div>
 
-    <div class="ops-actions-grid">
-      <article class="ops-action-card">
-        <span class="section-kicker">WORKLOAD MIX (TASK)</span>
-        <h3>Where the effort goes</h3>
-        {#if tasks.length === 0}
-          <p class="forge-lede">No workflow runs recorded yet.</p>
-        {:else}
-          <div class="evo-bars">
-            {#each tasks as [task, count] (task)}
-              <div class="evo-row"><span class="evo-day">{task}</span><div class="evo-bar-track"><div class="evo-bar" style="width:{Math.round((count / maxTask) * 100)}%"></div></div><span class="evo-count">{count}</span></div>
-            {/each}
-          </div>
-        {/if}
-        <small class="button-caption">Every run is one step toward better crates: inventory → evidence → provider analysis → review.</small>
-      </article>
+    <div class="grid grid-cols-3 gap-3 max-[1050px]:grid-cols-2 max-[700px]:grid-cols-1">
+      <Card.Root class="min-w-0">
+        <Card.Header>
+          <span class="block text-[10px] font-extrabold tracking-[1.45px] text-[#63809a]">WORKLOAD MIX (TASK)</span>
+          <Card.Title>Where the effort goes</Card.Title>
+        </Card.Header>
+        <Card.Content>
+          {#if tasks.length === 0}
+            <p class="mt-[7px] min-h-[38px] text-[12px] text-muted-foreground">No workflow runs recorded yet.</p>
+          {:else}
+            <div class="mt-2">
+              {#each tasks as [task, count] (task)}
+                <div class="mb-1.5 flex items-center gap-2.5"><span class="min-w-[74px] text-[11.5px] text-muted-foreground">{task}</span><div class="h-[10px] flex-1 overflow-hidden rounded-[5px] bg-muted"><div class="h-full rounded-[5px] bg-primary" style="width:{Math.round((count / maxTask) * 100)}%"></div></div><span class="min-w-[34px] text-right text-[11.5px] font-bold">{count}</span></div>
+              {/each}
+            </div>
+          {/if}
+          <small class="mt-2.5 block text-center text-[10.5px] text-muted-foreground">Every run is one step toward better crates: inventory → evidence → provider analysis → review.</small>
+        </Card.Content>
+      </Card.Root>
 
-      <article class="ops-action-card">
-        <span class="section-kicker">COVERAGE · LAB ENGINE</span>
-        <h3>Command-surface coverage</h3>
-        {#each data.coverage as row (row.workspace)}
-          <div class="evo-row"><span class="evo-day">{row.workspace}</span><div class="evo-bar-track"><div class="evo-bar" style="width:{Math.round(row.percent)}%"></div></div><span class="evo-count">{row.percent}%</span></div>
-        {:else}
-          <p class="forge-lede">No lab coverage yet.</p>
-        {/each}
-        <small class="button-caption">Coverage moves when scenarios exercise more of each manifest — Lab · Scenarios.</small>
-      </article>
-    </div>
-
-    <article class="ops-action-card">
-      <span class="section-kicker">RECENT CASES</span>
-      <h3>Last cases, with provenance</h3>
-      {#if recentCases.length === 0}
-        <p class="forge-lede">Nothing yet. Prepare a case packet to see it here.</p>
-      {:else}
-        <ul class="evo-recent">
-          {#each recentCases as run (run.at)}
-            <li>
-              <span class="t">{time(run.at)}</span>
-              <span><strong>{run.task}</strong> · {run.target} <em>({run.mode})</em>{#if run.provider} · {run.provider}{/if}{#if run.model} · {run.model}{/if}</span>
-            </li>
+      <Card.Root class="min-w-0">
+        <Card.Header>
+          <span class="block text-[10px] font-extrabold tracking-[1.45px] text-[#63809a]">COVERAGE · LAB ENGINE</span>
+          <Card.Title>Command-surface coverage</Card.Title>
+        </Card.Header>
+        <Card.Content>
+          {#each data.coverage as row (row.workspace)}
+            <div class="mb-1.5 flex items-center gap-2.5"><span class="min-w-[74px] text-[11.5px] text-muted-foreground">{row.workspace}</span><div class="h-[10px] flex-1 overflow-hidden rounded-[5px] bg-muted"><div class="h-full rounded-[5px] bg-primary" style="width:{Math.round(row.percent)}%"></div></div><span class="min-w-[34px] text-right text-[11.5px] font-bold">{row.percent}%</span></div>
+          {:else}
+            <p class="mt-[7px] min-h-[38px] text-[12px] text-muted-foreground">No lab coverage yet.</p>
           {/each}
-        </ul>
-      {/if}
-    </article>
+          <small class="mt-2.5 block text-center text-[10.5px] text-muted-foreground">Coverage moves when scenarios exercise more of each manifest — Lab · Scenarios.</small>
+        </Card.Content>
+      </Card.Root>
+    </div>
 
-    <article class="ops-action-card">
-      <span class="section-kicker">PROJECT · CRATE CATALOG ({data.target})</span>
-      <h3>What the lab improves</h3>
-      <div class="crate-chips">
-        {#each data.crates as crate (crate.id)}
-          <button class="crate-chip" onclick={() => onnav?.("forge")}>{crate.package}</button>
-        {/each}
-      </div>
-      <div class="ops-button-row" style="margin-top:12px">
-        <button class="ghost" onclick={() => onnav?.("forge")}>Run a workflow</button>
-        <button class="ghost" onclick={() => onnav?.("reports")}>Read the reports</button>
-        <button class="ghost" onclick={() => onnav?.("forge-settings")}>Check providers</button>
-      </div>
-    </article>
+    <Card.Root class="min-w-0">
+      <Card.Header>
+        <span class="block text-[10px] font-extrabold tracking-[1.45px] text-[#63809a]">RECENT CASES</span>
+        <Card.Title>Last cases, with provenance</Card.Title>
+      </Card.Header>
+      <Card.Content>
+        {#if recentCases.length === 0}
+          <p class="mt-[7px] min-h-[38px] text-[12px] text-muted-foreground">Nothing yet. Prepare a case packet to see it here.</p>
+        {:else}
+          <ul class="m-0 mt-2 list-none p-0">
+            {#each recentCases as run (run.at)}
+              <li class="flex items-baseline gap-2.5 py-1 text-[12.5px]">
+                <span class="min-w-[130px] text-[11px] text-muted-foreground">{time(run.at)}</span>
+                <span><strong>{run.task}</strong> · {run.target} <em class="text-[11.5px] not-italic text-muted-foreground">({run.mode})</em>{#if run.provider} · {run.provider}{/if}{#if run.model} · {run.model}{/if}</span>
+              </li>
+            {/each}
+          </ul>
+        {/if}
+      </Card.Content>
+    </Card.Root>
+
+    <Card.Root class="min-w-0">
+      <Card.Header>
+        <span class="block text-[10px] font-extrabold tracking-[1.45px] text-[#63809a]">PROJECT · CRATE CATALOG ({data.target})</span>
+        <Card.Title>What the lab improves</Card.Title>
+      </Card.Header>
+      <Card.Content>
+        <div class="mt-2.5 flex flex-wrap gap-1.5">
+          {#each data.crates as crate (crate.id)}
+            <button class="cursor-pointer rounded-full border border-border bg-card px-[10px] py-[3px] text-[11.5px] [font-family:inherit] hover:border-primary hover:text-primary" onclick={() => onnav?.("forge")}>{crate.package}</button>
+          {/each}
+        </div>
+        <div class="mt-3 flex flex-wrap items-center gap-[9px]">
+          <Button variant="outline" size="sm" onclick={() => onnav?.("forge")}>Run a workflow</Button>
+          <Button variant="outline" size="sm" onclick={() => onnav?.("reports")}>Read the reports</Button>
+          <Button variant="outline" size="sm" onclick={() => onnav?.("forge-settings")}>Check providers</Button>
+        </div>
+      </Card.Content>
+    </Card.Root>
   {/if}
 </section>

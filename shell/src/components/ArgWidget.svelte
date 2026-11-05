@@ -1,6 +1,10 @@
 <script lang="ts">
   import { api } from "../api";
   import type { ArgSpec, UrlProbe } from "../types";
+  import { Button } from "$lib/components/ui/button/index.js";
+  import { Input } from "$lib/components/ui/input/index.js";
+  import * as Select from "$lib/components/ui/select/index.js";
+  import { cn } from "$lib/utils.js";
 
   let {
     arg,
@@ -52,20 +56,36 @@
 </script>
 
 {#if arg.type === "enum"}
-  <select value={(value as string) ?? ""} onchange={(e) => onvalue(e.currentTarget.value)}>
-    <option value="" disabled>{placeholder}</option>
-    {#each arg.options ?? [] as o (o)}
-      <option value={o}>{o}</option>
-    {/each}
-  </select>
+  <Select.Root
+    type="single"
+    value={(value as string) ?? ""}
+    onValueChange={(v) => v && onvalue(v)}
+  >
+    <Select.Trigger size="sm" class="w-full">
+      <Select.Value {placeholder} />
+    </Select.Trigger>
+    <Select.Content>
+      {#each arg.options ?? [] as o (o)}
+        <Select.Item value={o} label={o} />
+      {/each}
+    </Select.Content>
+  </Select.Root>
 {:else if arg.type === "bool"}
-  <select value={value === undefined ? "" : String(value)} onchange={(e) => onvalue(e.currentTarget.value === "true")}>
-    <option value="" disabled>{placeholder}</option>
-    <option value="true">true</option>
-    <option value="false">false</option>
-  </select>
+  <Select.Root
+    type="single"
+    value={value === undefined ? "" : String(value)}
+    onValueChange={(v) => onvalue(v === "true")}
+  >
+    <Select.Trigger size="sm" class="w-full">
+      <Select.Value {placeholder} />
+    </Select.Trigger>
+    <Select.Content>
+      <Select.Item value="true" label="true" />
+      <Select.Item value="false" label="false" />
+    </Select.Content>
+  </Select.Root>
 {:else if arg.type === "int" || arg.type === "float"}
-  <input
+  <Input
     type="number"
     value={(value as number) ?? ""}
     {placeholder}
@@ -75,6 +95,7 @@
   />
 {:else if arg.type === "json"}
   <textarea
+    class="min-h-[72px] w-full resize-y rounded-md border border-input bg-background px-2.5 py-2 font-mono text-[11px] leading-relaxed outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
     value={typeof value === "string" ? value : JSON.stringify(value ?? {}, null, 2)}
     {placeholder}
     onchange={(e) => {
@@ -87,15 +108,15 @@
     }}
   ></textarea>
 {:else if arg.type === "url"}
-  <div class="url-row">
-    <input value={(value as string) ?? ""} {placeholder} onchange={(e) => onvalue(e.currentTarget.value)} />
-    <button class="ghost" disabled={!value || probing} onclick={testUrl}>
+  <div class="flex items-center gap-2">
+    <Input value={(value as string) ?? ""} {placeholder} onchange={(e) => onvalue(e.currentTarget.value)} />
+    <Button variant="ghost" size="sm" disabled={!value || probing} onclick={testUrl}>
       {probing ? "probing…" : "Test"}
-    </button>
+    </Button>
   </div>
   {#if probeLine}
-    <p class="probe-line" class:probe-ok={probe?.ok} style="margin:4px 0 0">{probeLine}</p>
+    <p class={cn("mt-1 text-xs", probe?.ok ? "text-success" : "text-destructive")}>{probeLine}</p>
   {/if}
 {:else}
-  <input value={(value as string) ?? ""} {placeholder} onchange={(e) => onvalue(e.currentTarget.value)} />
+  <Input value={(value as string) ?? ""} {placeholder} onchange={(e) => onvalue(e.currentTarget.value)} />
 {/if}

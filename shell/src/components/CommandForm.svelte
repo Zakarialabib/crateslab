@@ -2,6 +2,11 @@
   import { api, errorToLines } from "../api";
   import type { CommandSpec, LabErrorValue, Manifest, SinkOutcome } from "../types";
   import ArgWidget from "./ArgWidget.svelte";
+  import { Badge } from "$lib/components/ui/badge/index.js";
+  import { Button } from "$lib/components/ui/button/index.js";
+  import { Label } from "$lib/components/ui/label/index.js";
+  import * as Card from "$lib/components/ui/card/index.js";
+  import * as Dialog from "$lib/components/ui/dialog/index.js";
 
   // One command's generated form + result pane. Destructive commands open
   // the confirm step before anything is sent to the engine.
@@ -53,55 +58,64 @@
   }
 </script>
 
-<h2>Invoke <code>{command.id}</code></h2>
-<div class="card" style="max-width:640px">
-  <p class="sub" style="margin:0">
+<h2 class="mb-3 text-[15px] font-semibold">Invoke <code class="rounded bg-muted px-1.5 py-0.5 font-mono text-[12px]">{command.id}</code></h2>
+<Card.Root class="max-w-[640px] gap-3">
+  <p class="text-[12.5px] text-muted-foreground">
     {command.help ?? command.label} · timeout {command.timeout_ms} ms{command.rate_limit
       ? ` · rate ${command.rate_limit.per_second}/s (burst ${command.rate_limit.burst})`
       : ""}
   </p>
-  <div class="form">
+  <div class="flex flex-col gap-3.5">
     {#each command.args as a (a.name)}
-      <label>
-        {a.name} <span class="badge">{a.type}</span>
-        <ArgWidget arg={a} value={values[a.name]} onvalue={(v) => (values[a.name] = v)} />
-      </label>
+      <Label class="flex flex-col items-start gap-1.5 text-[12px]">
+        <span class="flex items-center gap-2">
+          {a.name}
+          <Badge variant="secondary" class="text-[9px] font-semibold tracking-wide uppercase">{a.type}</Badge>
+        </span>
+        <div class="w-full">
+          <ArgWidget arg={a} value={values[a.name]} onvalue={(v) => (values[a.name] = v)} />
+        </div>
+      </Label>
     {/each}
-    <div class="run-row">
-      <button class="primary" disabled={!canRun} onclick={onPrimary}>
+    <div class="flex items-center gap-3">
+      <Button disabled={!canRun} onclick={onPrimary}>
         {busy ? "running…" : "Run"}
-      </button>
+      </Button>
       {#if missingRequired.length > 0}
-        <span style="color:var(--muted);font-size:12.5px">
+        <span class="text-[12.5px] text-muted-foreground">
           needs: {missingRequired.map((a) => a.name).join(", ")}
         </span>
       {/if}
     </div>
   </div>
-</div>
+</Card.Root>
 
-{#if confirmOpen}
-  <div class="card" style="max-width:640px;margin-top:12px;border-color:var(--bad)">
-    <h3>Confirm destructive command</h3>
-    <p class="sub" style="margin:6px 0 10px">
-      <code>{command.id}</code> mutates the target. Refusals and outcomes still book coverage.
-    </p>
-    <div class="run-row">
-      <button class="primary" onclick={() => run(true)}>Yes, run it</button>
-      <button class="ghost" onclick={() => (confirmOpen = false)}>Cancel</button>
+<Dialog.Root bind:open={confirmOpen}>
+  <Dialog.Content showCloseButton={false} class="max-w-[640px] gap-3">
+    <Dialog.Title class="text-[14px] font-semibold">Confirm destructive command</Dialog.Title>
+    <Dialog.Description class="text-[12.5px] text-muted-foreground">
+      <code class="rounded bg-muted px-1.5 py-0.5 font-mono text-[11px]">{command.id}</code> mutates the target. Refusals
+      and outcomes still book coverage.
+    </Dialog.Description>
+    <div class="mt-1 flex items-center gap-3">
+      <Button variant="destructive" onclick={() => run(true)}>Yes, run it</Button>
+      <Button variant="ghost" onclick={() => (confirmOpen = false)}>Cancel</Button>
     </div>
-  </div>
-{/if}
+  </Dialog.Content>
+</Dialog.Root>
 
 {#if err}
-  <div class="result err" style="margin-top:14px">{errorToLines(err).join("\n")}</div>
+  <pre class="mt-3.5 w-fit max-w-full overflow-x-auto rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 font-mono text-[11px] whitespace-pre-wrap text-destructive">{errorToLines(err).join("\n")}</pre>
 {/if}
 
 {#if result}
-  <div class="result" style="margin-top:14px">{JSON.stringify(result, null, 2)}</div>
+  <pre class="mt-3.5 max-w-full overflow-x-auto rounded-md border border-border bg-card px-3 py-2 font-mono text-[11px] text-foreground">{JSON.stringify(result, null, 2)}</pre>
   {#if result.events.length > 0}
-    <p class="sub" style="margin-top:8px">
-      emitted: {#each result.events as e (e.id)}<span class="badge">{e.id}</span>{/each}
+    <p class="mt-2 flex flex-wrap items-center gap-1.5 text-[12.5px] text-muted-foreground">
+      emitted:
+      {#each result.events as e (e.id)}
+        <Badge variant="secondary" class="text-[9px] font-semibold tracking-wide">{e.id}</Badge>
+      {/each}
     </p>
   {/if}
 {/if}
