@@ -54,6 +54,19 @@ pub enum ForgeError {
         /// What is wrong.
         problem: String,
     },
+
+    /// A service needs a credential that is not configured.
+    ///
+    /// This is deliberately its own class: the remedy is not a code change but
+    /// a settings action, so the UI can offer a setup link instead of a
+    /// generic failure.
+    #[error("{service} is not configured: set {key}")]
+    Credential {
+        /// The service or provider id, e.g. `groq`.
+        service: String,
+        /// The environment variable that must hold the credential.
+        key: String,
+    },
 }
 
 impl ForgeError {
@@ -65,6 +78,7 @@ impl ForgeError {
             ForgeError::Pipeline { .. } => LabErrorKind::Scenario,
             ForgeError::Retrieval { .. } => LabErrorKind::Discovery,
             ForgeError::Remote { .. } => LabErrorKind::Transport,
+            ForgeError::Credential { .. } => LabErrorKind::Manifest,
         }
     }
 
@@ -76,6 +90,7 @@ impl ForgeError {
             ForgeError::Pipeline { .. } => Remedy::FixScenario,
             ForgeError::Retrieval { .. } => Remedy::Retry,
             ForgeError::Remote { .. } => Remedy::Abort,
+            ForgeError::Credential { .. } => Remedy::FixManifest,
         }
     }
 
@@ -85,6 +100,7 @@ impl ForgeError {
             ForgeError::Lab(error) => error.severity(),
             ForgeError::Retrieval { .. } => Severity::Warn,
             ForgeError::Remote { .. } => Severity::Fatal,
+            ForgeError::Credential { .. } => Severity::Warn,
             ForgeError::Workflow { .. } | ForgeError::Pipeline { .. } => Severity::Warn,
         }
     }
@@ -124,6 +140,16 @@ mod tests {
         assert_eq!(remote.kind(), LabErrorKind::Transport);
         assert_eq!(remote.severity(), Severity::Fatal);
         assert_eq!(remote.exit_code(), 3);
+
+        let credential = ForgeError::Credential {
+            service: "groq".into(),
+            key: "GROQ_API_KEY".into(),
+        };
+        assert_eq!(credential.kind(), LabErrorKind::Manifest);
+        assert_eq!(credential.remedy(), Remedy::FixManifest);
+        assert_eq!(credential.severity(), Severity::Warn);
+        assert_eq!(credential.exit_code(), 2);
+        assert!(credential.to_string().contains("GROQ_API_KEY"));
     }
 
     #[test]

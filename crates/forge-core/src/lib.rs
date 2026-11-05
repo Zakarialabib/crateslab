@@ -50,7 +50,7 @@ pub use artifact::{Artifact, ArtifactKind, EvidenceRef};
 pub use error::{ForgeError, ForgeResult};
 pub use orchestrator::{ForgeContext, ForgeStateName, ForgeStep, ValidationError};
 pub use pipeline::{AllowAll, GateRules, Pipeline, PipelineOutcome, RuleSet, StageRun};
-pub use provider::{MockProvider, Provider, ProviderPort, ProviderRequest, ProviderResponse};
+pub use provider::{MockProvider, Provider, ProviderPort, ProviderRequest, ProviderResponse, Usage};
 pub use stage::{Gate, Refusal, RuleVerdict, Stage, StageKind};
 pub use target::{Domain, Target};
 pub use task::{embedded_tasks, Task, TaskCatalog, TaskScope, EMBEDDED_TASKS};
